@@ -190,22 +190,4 @@ cython_debug/
 #.idea/
 
 # Ignore all picture and image files
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.bmp
-*.ppm
-*.pgm
-*.pbm
-*.pnm
-*.webp
-*.heif
-*.bpg
-*.flif
-*.ico
-*.svg
-*.svgz
-*.eps
-*.tiff
-*.tif
+Plots/
