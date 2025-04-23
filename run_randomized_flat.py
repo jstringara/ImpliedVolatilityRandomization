@@ -45,7 +45,7 @@ if __name__ == "__main__":
         # Plot all the results
         axs[i].set_title(r"Randomized Flat Volatility: $(\mu,\nu)=$" + f"{params[0],params[1]}", size=20)
         axs[i].set_xlabel(r"$m = \log (S_0/K) + rT $", size=20)
-        axs[i].set_ylabel("Implied Volatility [\%]", size=20)
+        axs[i].set_ylabel("Implied Volatility [%]", size=20)
         axs[i].plot(
             m,
             ivs_p * 100,

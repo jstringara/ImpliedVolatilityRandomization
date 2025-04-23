@@ -94,7 +94,7 @@ if __name__ == "__main__":
         # Adjust Plot
         ax.grid()
         ax.set_xlabel("Strike (relative to ATM) ", size=20)
-        ax.set_ylabel("Implied Volatility [\%]", size=20)
+        ax.set_ylabel("Implied Volatility [%]", size=20)
         ax.set_title(f"{month} (TTM {np.round(t,2)}y)", size=20)
         ax.set_xlim([k[0] / spot, k[-1] / spot])
         l = ax.legend(prop={"size": 10}, fancybox=True, shadow=True)
