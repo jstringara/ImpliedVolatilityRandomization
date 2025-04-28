@@ -19,7 +19,7 @@ def calibrate_rand_sabr(spot, k, t, r, market_ivs, initial_parameters, pre_calib
     implied volatilities and the observed market implied volatilities.
     """
     def objective(params):
-        model = RandSABR(params_rand=params, n_col_points=n_col_points)
+        model = RandSABR(params=params, n_col_points=n_col_points)
         try:
             model_ivs = model.ivs(spot, k, t, r)
             error = np.mean((np.array(model_ivs) - market_ivs)
@@ -95,14 +95,13 @@ if __name__ == "__main__":
 
         # Calibrate RandSABR parameters
         print(f"Calibrating parameters for {month}...")
-        calibrated_randomized_sabr = RandSABR()
+        calibrated_randomized_sabr = RandSABR(fixed_params={"beta": 0.9})
         calibrated_randomized_sabr.calibrate(
             spot, k, t, r, iv, rand_sabr_initial_params, n_iter=10)
-        calibrated_params = calibrated_randomized_sabr.params_rand
-        print(f"Calibrated Parameters for {month}: {calibrated_params}")
+        calibrated_params = calibrated_randomized_sabr.params
         
         pre_calibrated_randomized_sabr = RandSABR(
-            params_rand=pre_calibrated_params, n_col_points=2)
+            params=pre_calibrated_params, n_col_points=2)
 
         # For the plot we prefer a uniform grid
         k_uni = np.linspace(k[0] / spot, k[-1] / spot, 100) * spot
