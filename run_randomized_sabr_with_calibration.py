@@ -163,8 +163,8 @@ if __name__ == "__main__":
         ax.set_ylabel("Implied Volatility [%]", size=20)
         ax.set_title(f"{month} (TTM {np.round(t, 2)}y)", size=20)
         ax.set_xlim([k[0] / spot, k[-1] / spot])
-        l = ax.legend(prop={"size": 10}, fancybox=True, shadow=True)
-        l.get_frame().set_edgecolor("black")
+        legend = ax.legend(prop={"size": 10}, fancybox=True, shadow=True)
+        legend.get_frame().set_edgecolor("black")
 
     plt.suptitle(
         "SPX Option Chain 2024-07-31 with Calibrated RandSABR and SABR",
