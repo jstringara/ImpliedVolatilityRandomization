@@ -1,4 +1,8 @@
+import os
+import json
+import logging
 import numpy as np
+from datetime import datetime
 from typing import ClassVar, Optional, Union, Self
 from pydantic import BaseModel, Field, model_validator
 from scipy.optimize import basinhopping
@@ -20,12 +24,13 @@ class RandSABR(BaseModel):
     non_randomized_params_end: ClassVar[int] = 3
 
     # Bounds for the parameters
+    epsilon: ClassVar[float] = 1e-5
     default_bounds: ClassVar[list[tuple[float, Optional[float]]]] = [
         (0.0, 1.0),  # beta in [0,1]
-        (1e-6, None),  # alpha > 0
-        (-1 + 1e-6, 1 - 1e-6),  # rho in (-1,1)
-        (1e-6, None),  # gamma > 0
-        (1e-6, None),  # scale > 0
+        (epsilon, None),  # alpha > 0
+        (-1 + epsilon, 1 - epsilon),  # rho in (-1,1)
+        (epsilon, None),  # gamma > 0
+        (epsilon, None),  # scale > 0
     ]
 
     # Parameters
@@ -35,38 +40,146 @@ class RandSABR(BaseModel):
 
     n_col_points: int = 2
 
+    # Logging and parameter storage
+    log_file: ClassVar[str] = os.path.join(os.path.dirname(__file__), "RandSABR.log")
+    params_file: ClassVar[str] = os.path.join(
+        os.path.dirname(__file__), "RandSABR_params.json"
+    )
+
+    # Initialize logger
+    logger: ClassVar[logging.Logger] = logging.getLogger("RandSABR")
+    logging.basicConfig(
+        filename=log_file,
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+
+    def _log(self, message: str, level: str = "info") -> None:
+        """
+        Log a message using the logging library.
+        """
+        if level == "info":
+            self.logger.info(message)
+        elif level == "warning":
+            self.logger.warning(message)
+        elif level == "error":
+            self.logger.error(message)
+        elif level == "debug":
+            self.logger.debug(message)
+        print(message)  # Also print to the terminal
+
+    def show_logs(self) -> None:
+        """
+        Display the contents of the log file.
+        """
+        if os.path.exists(self.log_file):
+            with open(self.log_file, "r") as log:
+                print(log.read())
+        else:
+            print("No logs available.")
+
+    def save_params(self) -> None:
+        """
+        Save the calibrated parameters to a JSON file with a timestamp.
+        """
+        if not self.params:
+            raise ValueError("No parameters to save.")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        serialized_params = self.to_dict()
+
+        if os.path.exists(self.params_file):
+            with open(self.params_file, "r") as f:
+                data = json.load(f)
+        else:
+            data = {}
+
+        data[timestamp] = serialized_params
+
+        with open(self.params_file, "w") as f:
+            json.dump(data, f, indent=4)
+
+        self._log(
+            f"Calibrated parameters saved to {self.params_file} under timestamp {timestamp}."
+        )
+
+    def load_params(self, timestamp: str) -> None:
+        """
+        Load calibrated parameters from the JSON file by timestamp.
+        """
+        if not os.path.exists(self.params_file):
+            raise FileNotFoundError("No parameter file found.")
+
+        with open(self.params_file, "r") as f:
+            data = json.load(f)
+
+        if timestamp is None:
+            # Load the most recent parameters
+            timestamp = sorted(data.keys())[-1]
+
+        if timestamp not in data:
+            raise ValueError(f"No parameters found for timestamp {timestamp}.")
+
+        self.params = self.params_dict_to_list(data[timestamp])
+        self._log(f"Loaded parameters for timestamp {timestamp}: {self.params}")
+
     @classmethod
-    def params_dict_to_list(cls, params_dict) -> list[float]:
+    def _parse_params(
+        cls, params: Union[np.ndarray, tuple, dict, list, None]
+    ) -> list[float]:
         """
-        Convert the parameters dictionary to a list.
+        Parse and convert the input parameters into a list of floats.
+        Supports numpy arrays, tuples, dictionaries, lists, or None.
         """
-        if len(params_dict) != len(cls.param_names):
-            raise ValueError(
-                f"Expected {len(cls.param_names)} parameters, got {len(params_dict)}"
-            )
-        if params_dict.keys() != set(cls.param_names):
-            raise ValueError(
-                f"Expected parameters {cls.param_names}, got {params_dict.keys()}"
-            )
-        return [params_dict[name] for name in cls.param_names]
+        if params is None:
+            return []
+
+        if isinstance(params, np.ndarray):
+            if len(params) != len(cls.param_names):
+                raise ValueError(
+                    f"Expected {len(cls.param_names)} parameters, got {len(params)}"
+                )
+            return params.tolist()
+
+        if isinstance(params, tuple):
+            if len(params) != len(cls.param_names):
+                raise ValueError(
+                    f"Expected {len(cls.param_names)} parameters, got {len(params)}"
+                )
+            return list(params)
+
+        if isinstance(params, dict):
+            if len(params) != len(cls.param_names):
+                raise ValueError(
+                    f"Expected {len(cls.param_names)} parameters, got {len(params)}"
+                )
+            if params.keys() != set(cls.param_names):
+                raise ValueError(
+                    f"Expected parameters {cls.param_names}, got {params.keys()}"
+                )
+            return [params[name] for name in cls.param_names]
+
+        if isinstance(params, list):
+            if len(params) != len(cls.param_names):
+                raise ValueError(
+                    f"Expected {len(cls.param_names)} parameters, got {len(params)}"
+                )
+            return params
+
+        raise ValueError(
+            f"Invalid type for params: {type(params)}. Expected list, tuple, dict, numpy array, or None."
+        )
 
     @model_validator(mode="before")
     @classmethod
     def _parse_input_params(cls, values):
-        raw_params = values.get("params")
-        if isinstance(raw_params, dict):
-            values["params"] = cls.params_dict_to_list(raw_params)
-        elif raw_params is None:
-            values["params"] = []
+        values["params"] = cls._parse_params(values.get("params"))
         return values
-    
+
     @model_validator(mode="after")
     def _validate_params(self) -> Self:
-        self._validate_params_with_bounds(
-            self.params, self.bounds
-        )
+        self._validate_params_with_bounds(self.params, self.bounds)
         self._validate_fixed_params(self.fixed_params)
-        
+
         return self
 
     def _validate_params_with_bounds(
@@ -124,17 +237,13 @@ class RandSABR(BaseModel):
 
     def set_params_and_bounds(
         self,
-        initial_parameters: Union[list[float], dict[str, float]],
-    ) -> tuple[np.ndarray, list[tuple[float, Optional[float]]]]:
+        initial_parameters: Union[np.ndarray, tuple, dict[str, float], list[float]],
+    ) -> None:
         """
         Set the parameters and bounds, fixing any parameters as needed.
         """
-        if isinstance(initial_parameters, dict):
-            initial_parameters = self.params_dict_to_list(initial_parameters)
-        if len(initial_parameters) != len(self.param_names):
-            raise ValueError(
-                f"Expected {len(self.param_names)} parameters, got {len(initial_parameters)}"
-            )
+        # validate the input parameters
+        initial_parameters = self._parse_params(initial_parameters)
 
         self.params = initial_parameters.copy()
         self.bounds = self.default_bounds.copy()
@@ -174,24 +283,28 @@ class RandSABR(BaseModel):
                 model_ivs = np.array(self.ivs(spot, k, t, r))
                 return np.mean((model_ivs - market_ivs) ** 2)
             except Exception as e:
-                print(
-                    f"[RandSABR] Error in objective function: {e} with params: {params}"
+                self._log(
+                    f"[RandSABR] Error in objective function: {e} with params: {params}",
+                    level="error",
                 )
                 return np.inf
 
         self.set_params_and_bounds(initial_parameters)
 
-        if verbose:
-            print(f"[RandSABR] Initial parameters: {self.params}")
-            print(f"[RandSABR] Bounds: {self.bounds}")
+        self._log(f"Starting calibration with initial parameters: {self.params}")
+        self._log(f"Bounds: {self.bounds}")
 
         result = basinhopping(
             objective,
             self.params,
             minimizer_kwargs={"method": "L-BFGS-B", "bounds": self.bounds},
             niter=n_iter,
+            disp=verbose,
         )
-        self.params = result.x
+
+        self.params = result.x.tolist()  # convert to list
+        self._log(f"Calibration completed. Calibrated parameters: {self.params}")
+        self.save_params()
 
     def prices(self, spot: float, k: np.ndarray, t: float, r: float) -> np.ndarray:
         """
