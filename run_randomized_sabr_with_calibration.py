@@ -5,54 +5,14 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import basinhopping
 from randomizations.rand_sabr import RandSABR
+from randomizations.sabr import SABR  # Import the new SABR class
 from general.util import imply_volatility
+from general.hagan import hagan_implied_volatility
 
 """
 This script extends the functionality of the original run_randomized_sabr.py script by including
-the calibration of the RandSABR model parameters before running the analysis and plotting.
+the calibration of both the RandSABR and SABR model parameters before running the analysis and plotting.
 """
-
-
-def calibrate_rand_sabr(spot, k, t, r, market_ivs, initial_parameters, pre_calibrated_parameters, n_col_points=2):
-    """
-    Calibrates the RandSABR model parameters by minimizing the error between the model's
-    implied volatilities and the observed market implied volatilities.
-    """
-    def objective(params):
-        model = RandSABR(params=params, n_col_points=n_col_points)
-        try:
-            model_ivs = model.ivs(spot, k, t, r)
-            error = np.mean((np.array(model_ivs) - market_ivs)
-                            ** 2)  # Normalize error
-            return error
-        except Exception as e:
-            print("Error during model evaluation:", e)
-            return np.inf
-
-    # Parameter bounds
-    bounds = [
-        (1e-6, None),  # alpha > 0
-        (0, 1),        # 0 <= beta <= 1
-        (-1+1e-6, 1-1e-6),  # rho in (-1, 1)
-        (1e-6, None),  # gamma > 0
-        (1e-6, None),  # scale > 0
-    ]
-    minimizer_kwargs = {"method": "L-BFGS-B", "bounds": bounds}
-    result = basinhopping(objective, initial_parameters,
-                          minimizer_kwargs=minimizer_kwargs, niter=10)
-    calibrated_params = result.x
-
-    # validate the calibration
-    calibrated_error = objective(calibrated_params)
-    print(
-        f"objective function value at calibrated parameters: {calibrated_error}")
-    pre_calibrated_error = objective(pre_calibrated_parameters)
-    print(
-        f"objective function value at pre-calibrated parameters: {pre_calibrated_error}"
-    )
-
-    return calibrated_params
-
 
 rcParams["font.family"] = "serif"
 rcParams["font.serif"] = ["Liberation Serif"]
@@ -63,8 +23,12 @@ if __name__ == "__main__":
     today = date(2024, 7, 31)
     fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(15, 11))
 
-    expiryDates = [date(2024, 8, 16), date(2024, 9, 20),
-                   date(2024, 10, 18), date(2024, 11, 15)]
+    expiryDates = [
+        date(2024, 8, 16),
+        date(2024, 9, 20),
+        date(2024, 10, 18),
+        date(2024, 11, 15),
+    ]
     months = ["August", "September", "October", "November"]
     rand_sabr_params = np.array(
         [
@@ -84,9 +48,23 @@ if __name__ == "__main__":
             [0.9, 0.34742342, -0.56569068, 1.5388523],
         ]
     )
+    sabr_initial_params = np.mean(rand_sabr_params, axis=0)
+    sabr_initial_params = np.array([0.5, 0.5, 0, 1])
 
-    for i, ax, eDate, month, pre_calibrated_params in zip(
-        range(4), axs.flatten(), expiryDates, months, rand_sabr_params
+    for (
+        i,
+        ax,
+        eDate,
+        month,
+        pre_calibrated_rand_sabr_params,
+        pre_calibrated_sabr_params,
+    ) in zip(
+        range(4),
+        axs.flatten(),
+        expiryDates,
+        months,
+        rand_sabr_params,
+        sabr_params,
     ):
         data = pd.read_csv(f"Data/{month}.csv", index_col=0).squeeze()
 
@@ -94,75 +72,88 @@ if __name__ == "__main__":
         k, iv = np.array(data.index), data.values
 
         # Calibrate RandSABR parameters
-        print(f"Calibrating parameters for {month}...")
-        calibrated_randomized_sabr = RandSABR(fixed_params={"beta": 0.9})
-        calibrated_randomized_sabr.calibrate(
-            spot, k, t, r, iv, rand_sabr_initial_params, n_iter=10)
-        calibrated_params = calibrated_randomized_sabr.params
-        
-        pre_calibrated_randomized_sabr = RandSABR(
-            params=pre_calibrated_params, n_col_points=2)
+        print(f"Calibrating RandSABR parameters for {month}...")
+        calibrated_rand_sabr = RandSABR(fixed_params={"beta": 0.9})
+        calibrated_rand_sabr.calibrate(
+            spot, k, t, r, iv, rand_sabr_initial_params, n_iter=10, verbose=True
+        )
+
+        # Calibrate SABR parameters
+        print(f"Calibrating SABR parameters for {month}...")
+        calibrated_sabr = SABR(fixed_params={"beta": 0.9})
+        calibrated_sabr.calibrate(spot, k, t, r, iv, sabr_initial_params, n_iter=10, verbose=True)
 
         # For the plot we prefer a uniform grid
         k_uni = np.linspace(k[0] / spot, k[-1] / spot, 100) * spot
 
-        # Get the randomized prices and expansion IVS
-        calibrated_randomized_prices = calibrated_randomized_sabr.prices(
-            spot, k_uni, t, r)
-        calibrated_randomized_ivs = calibrated_randomized_sabr.ivs(
-            spot, k_uni, t, r)
-        pre_calibrated_randomized_prices = pre_calibrated_randomized_sabr.prices(
-            spot, k_uni, t, r)
-        pre_calibrated_randomized_ivs = pre_calibrated_randomized_sabr.ivs(
-            spot, k_uni, t, r)
-        print(
-            f"Pre-calibrated Parameters for {month}: {pre_calibrated_params}")
-        print(f"Calibrated Parameters for {month}: {calibrated_params}")
-        print(
-            f"Difference from pre-calibrated parameters: {np.abs(calibrated_params - pre_calibrated_params)}")
+        # Get the prices and implied volatilities of the calibrated models
+        calibrated_rand_sabr_prices = calibrated_rand_sabr.prices(spot, k_uni, t, r)
+        calibrated_sabr_prices = calibrated_sabr.prices(spot, k_uni, t, r)
 
-        # Plotting
-        ax.plot(k / spot, 100 * iv, "x", label="Market Quote",
-                markersize=7, color="sandybrown")
-        # plot the calibrated randomized SABR
+        # Get the prices and implied volatilities of the pre-calibrated models
+        pre_calibrated_rand_sabr = RandSABR(params=pre_calibrated_rand_sabr_params)
+        pre_calibrated_sabr = SABR(params=pre_calibrated_sabr_params)
+
+        pre_calibrated_rand_sabr_prices = pre_calibrated_rand_sabr.prices(
+            spot, k_uni, t, r
+        )
+        pre_calibrated_sabr_prices = pre_calibrated_sabr.prices(spot, k_uni, t, r)
+
+        print(
+            f"Calibrated RandSABR Parameters for {month}: {calibrated_rand_sabr.params}"
+        )
+        print(f"Calibrated SABR Parameters for {month}: {calibrated_sabr.params}")
+
+        # Plot the market data
+        ax.plot(
+            k / spot,
+            100 * iv,
+            "x",
+            label="Market Quote",
+            markersize=7,
+            color="sandybrown",
+        )
+        # Plot the calibrated RandSABR
         ax.plot(
             k_uni / spot,
-            100 * imply_volatility(calibrated_randomized_prices,
-                                   spot, k_uni, t, r, 0.4),
-            label="Randomized SABR",
+            100 * imply_volatility(calibrated_rand_sabr_prices, spot, k_uni, t, r, 0.4),
+            label="Calibrated RandSABR",
             marker="^",
             linewidth=1.5,
-            color="#00539C",
+            color="blue",
             markevery=5,
         )
+        # Plot the calibrated SABR
         ax.plot(
             k_uni / spot,
-            100 * np.array(calibrated_randomized_ivs),
-            label="Randomized SABR (6th-order approximation)",
-            marker="*",
-            linewidth=1.5,
-            color="purple",
-            markevery=5,
-        )
-        # plot the pre-calibrated randomized SABR
-        ax.plot(
-            k_uni / spot,
-            100 *
-            imply_volatility(pre_calibrated_randomized_prices,
-                             spot, k_uni, t, r, 0.4),
-            label="Pre-calibrated Randomized SABR",
+            100 * imply_volatility(calibrated_sabr_prices, spot, k_uni, t, r, 0.4),
+            label="Calibrated SABR",
             marker="o",
-            linewidth=1.5,
-            color="#FF6F61",
-            markevery=5,
-        )
-        ax.plot(
-            k_uni / spot,
-            100 * np.array(pre_calibrated_randomized_ivs),
-            label="Pre-calibrated Randomized SABR (6th-order approximation)",
-            marker="s",
+            linestyle="dashdot",
             linewidth=1.5,
             color="green",
+            markevery=5,
+        )
+        # Plot the pre-calibrated RandSABR
+        ax.plot(
+            k_uni / spot,
+            100
+            * imply_volatility(pre_calibrated_rand_sabr_prices, spot, k_uni, t, r, 0.4),
+            label="Pre-calibrated RandSABR",
+            marker="^",
+            linewidth=1.5,
+            color="red",
+            markevery=5,
+        )
+        # Plot the pre-calibrated SABR
+        ax.plot(
+            k_uni / spot,
+            100 * imply_volatility(pre_calibrated_sabr_prices, spot, k_uni, t, r, 0.4),
+            label="Pre-calibrated SABR",
+            marker="o",
+            linestyle="--",
+            linewidth=1.5,
+            color="orange",
             markevery=5,
         )
 
@@ -175,8 +166,11 @@ if __name__ == "__main__":
         l = ax.legend(prop={"size": 10}, fancybox=True, shadow=True)
         l.get_frame().set_edgecolor("black")
 
-    plt.suptitle("SPX Option Chain 2024-07-31 with Calibrated RandSABR",
-                 fontsize=22, fontweight="bold")
+    plt.suptitle(
+        "SPX Option Chain 2024-07-31 with Calibrated RandSABR and SABR",
+        fontsize=22,
+        fontweight="bold",
+    )
     plt.tight_layout()
     plt.savefig("Plots/randomized_sabr_with_calibration.png", dpi=300)
     plt.show()
