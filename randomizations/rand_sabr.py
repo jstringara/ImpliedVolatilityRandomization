@@ -41,9 +41,11 @@ class RandSABR(BaseModel):
     n_col_points: int = 2
 
     # Logging and parameter storage
-    log_file: ClassVar[str] = os.path.join(os.path.dirname(__file__), "RandSABR.log")
+    log_file: ClassVar[str] = os.path.join(
+        os.path.dirname(__file__), "Logs", "RandSABR.log"
+    )
     params_file: ClassVar[str] = os.path.join(
-        os.path.dirname(__file__), "RandSABR_params.json"
+        os.path.dirname(__file__), "Calibrations", "RandSABR_params.json"
     )
 
     # Initialize logger
@@ -86,6 +88,9 @@ class RandSABR(BaseModel):
             raise ValueError("No parameters to save.")
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         serialized_params = self.to_dict()
+        
+        if not os.path.exists(os.path.dirname(self.params_file)):
+            os.makedirs(os.path.dirname(self.params_file))
 
         if os.path.exists(self.params_file):
             with open(self.params_file, "r") as f:
