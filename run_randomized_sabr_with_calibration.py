@@ -3,11 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import numpy as np
 import pandas as pd
-from scipy.optimize import basinhopping
 from randomizations.rand_sabr import RandSABR
 from randomizations.sabr import SABR  # Import the new SABR class
 from general.util import imply_volatility
-from general.hagan import hagan_implied_volatility
 
 """
 This script extends the functionality of the original run_randomized_sabr.py script by including

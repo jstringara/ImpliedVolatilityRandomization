@@ -3,7 +3,7 @@ import json
 import logging
 import numpy as np
 from datetime import datetime
-from typing import ClassVar, Optional, Union, Self
+from typing import ClassVar, Optional, List, Dict
 from pydantic import BaseModel, Field, model_validator
 from scipy.optimize import basinhopping
 
@@ -20,12 +20,12 @@ class RandSABR(BaseModel):
     """
 
     # Parameter names
-    param_names: ClassVar[list[str]] = ["beta", "alpha", "rho", "gamma", "scale"]
+    param_names: ClassVar[list] = ["beta", "alpha", "rho", "gamma", "scale"]
     non_randomized_params_end: ClassVar[int] = 3
 
     # Bounds for the parameters
     epsilon: ClassVar[float] = 1e-5
-    default_bounds: ClassVar[list[tuple[float, Optional[float]]]] = [
+    default_bounds: ClassVar[List[tuple]] = [
         (0.0, 1.0),  # beta in [0,1]
         (epsilon, None),  # alpha > 0
         (-1 + epsilon, 1 - epsilon),  # rho in (-1,1)
@@ -34,9 +34,9 @@ class RandSABR(BaseModel):
     ]
 
     # Parameters
-    params: Optional[list[float]] = Field(default_factory=list)
-    fixed_params: dict[str, float] = Field(default_factory=dict)
-    bounds: list[tuple[float, Optional[float]]] = Field(default_factory=list)
+    params: Optional[List[float]] = Field(default_factory=list)
+    fixed_params: Dict[str, float] = Field(default_factory=dict)
+    bounds: List[tuple] = Field(default_factory=list)
 
     n_col_points: int = 2
 
@@ -128,9 +128,7 @@ class RandSABR(BaseModel):
         self._log(f"Loaded parameters for timestamp {timestamp}: {self.params}")
 
     @classmethod
-    def _parse_params(
-        cls, params: Union[np.ndarray, tuple, dict, list, None]
-    ) -> list[float]:
+    def _parse_params(cls, params: np.ndarray | tuple | dict | list | None) -> List[float]:
         """
         Parse and convert the input parameters into a list of floats.
         Supports numpy arrays, tuples, dictionaries, lists, or None.
@@ -181,19 +179,18 @@ class RandSABR(BaseModel):
         return values
 
     @model_validator(mode="after")
-    def _validate_params(self) -> Self:
+    def _validate_params(self) -> "RandSABR":
         self._validate_params_with_bounds(self.params, self.bounds)
         self._validate_fixed_params(self.fixed_params)
 
         return self
 
     def _validate_params_with_bounds(
-        self, params: list[float], bounds: list[tuple[float, Optional[float]]]
-    ) -> Self:
+        self, params: List[float], bounds: List[tuple]
+    ) -> None:
         """
         Validate that the parameters are within the specified bounds.
         """
-        # short circuit if not params are set
         if len(params) == 0:
             return
         for i, (param, bound) in enumerate(zip(params, bounds)):
@@ -204,7 +201,7 @@ class RandSABR(BaseModel):
                     f"Parameter {self.param_names[i]} out of bounds: {param} not in {bound}"
                 )
 
-    def _validate_fixed_params(self, fixed_params: dict[str, float]) -> None:
+    def _validate_fixed_params(self, fixed_params: Dict[str, float]) -> None:
         """
         Validate that the fixed parameters are valid.
         """
@@ -214,7 +211,7 @@ class RandSABR(BaseModel):
                     f"Invalid fixed parameter name: {key}. Expected one of {self.param_names}."
                 )
 
-    def to_dict(self) -> dict[str, float]:
+    def to_dict(self) -> Dict[str, float]:
         """
         Return parameters as a dictionary.
         """
@@ -223,31 +220,30 @@ class RandSABR(BaseModel):
         return {name: self.params[i] for i, name in enumerate(self.param_names)}
 
     @property
-    def gamma_params(self) -> list[float]:
+    def gamma_params(self) -> List[float]:
         """
         Returns the parameters of the gamma distribution.
         """
         if len(self.params) == 0:
             raise ValueError("Parameters not set.")
-        return self.params[self.non_randomized_params_end :]
+        return self.params[self.non_randomized_params_end:]
 
     @property
-    def non_randomized_params(self) -> list[float]:
+    def non_randomized_params(self) -> List[float]:
         """
         Returns the non-randomized parameters of the model.
         """
         if len(self.params) == 0:
             raise ValueError("Parameters not set.")
-        return self.params[: self.non_randomized_params_end]
+        return self.params[:self.non_randomized_params_end]
 
     def set_params_and_bounds(
         self,
-        initial_parameters: Union[np.ndarray, tuple, dict[str, float], list[float]],
+        initial_parameters: np.ndarray | tuple | dict | list,
     ) -> None:
         """
         Set the parameters and bounds, fixing any parameters as needed.
         """
-        # validate the input parameters
         initial_parameters = self._parse_params(initial_parameters)
 
         self.params = initial_parameters.copy()
@@ -268,7 +264,7 @@ class RandSABR(BaseModel):
         t: float,
         r: float,
         market_ivs: np.ndarray,
-        initial_parameters: Union[list[float], dict[str, float]],
+        initial_parameters: list | np.ndarray | tuple | dict,
         n_iter: int = 10,
         verbose: bool = False,
     ) -> None:
