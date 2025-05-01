@@ -9,9 +9,30 @@ class Distribution(BaseModel):
     """
 
     _name: ClassVar[str] = PrivateAttr()
-    _parameter_names: ClassVar[list[str]] = PrivateAttr()
+
+    @property
+    def name(self) -> str:
+        if not self._name:
+            raise ValueError("Child class must define _name.")
+        return self._name
+
+    _param_names: ClassVar[list[str]] = PrivateAttr()
+
+    @property
+    def param_names(self) -> list[str]:
+        if not self._param_names:
+            raise ValueError("Child class must define _param_names.")
+        return self._param_names
+
     _bounds: ClassVar[list[tuple]] = PrivateAttr()
-    parameters: list[float]
+
+    @property
+    def bounds(self) -> list[tuple]:
+        if not self._bounds:
+            raise ValueError("Child class must define _bounds.")
+        return self._bounds
+
+    params: list[float] = []
 
     def get_gram_matrix(self):
         """
@@ -20,8 +41,10 @@ class Distribution(BaseModel):
         raise NotImplementedError("Subclasses must implement this method.")
 
     def get_alphas(r):
-        return [r[j, j + 1] / r[j, j] - r[j - 1, j] / r[j - 1, j - 1] for j in range(len(r) - 1)]
-
+        return [
+            r[j, j + 1] / r[j, j] - r[j - 1, j] / r[j - 1, j - 1]
+            for j in range(len(r) - 1)
+        ]
 
     def get_betas(r):
         return [(r[j + 1, j + 1] / r[j, j]) ** 2 for j in range(0, len(r) - 2)]
@@ -49,14 +72,14 @@ class Gamma(Distribution):
     """
 
     _name = "Gamma"
-    _parameter_names = ["shape", "scale"]
+    _param_names = ["shape", "scale"]
     _bounds = [(0, None), (0, None)]
 
     def get_gram_matrix(self, n):
         """
         Returns the Gram matrix for the distribution.
         """
-        k, theta = self.parameters
+        k, theta = self.params
         m = np.zeros((n + 1, n + 1))
 
         for idx, _ in np.ndenumerate(m):
@@ -65,20 +88,21 @@ class Gamma(Distribution):
 
         return m
 
+
 class Beta(Distribution):
     """
     Beta distribution.
     """
 
     _name = "Beta"
-    _parameter_names = ["alpha", "beta"]
+    _param_names = ["alpha", "beta"]
     _bounds = [(0, None), (0, None)]
 
     def get_gram_matrix(self, n):
         """
         Returns the Gram matrix for the distribution.
         """
-        alpha, beta = self.parameters
+        alpha, beta = self.params
         m = np.zeros((n + 1, n + 1))
 
         for idx, _ in np.ndenumerate(m):
@@ -87,37 +111,41 @@ class Beta(Distribution):
 
         return m
 
+
 class Uniform(Distribution):
     """
     Uniform distribution.
     """
 
     _name = "Uniform"
-    _parameter_names = ["lower", "upper"]
+    _param_names = ["lower", "upper"]
     _bounds = [(None, None), (None, None)]
 
     def get_gram_matrix(self, n):
         """
         Returns the Gram matrix for the distribution.
         """
-        u, d = self.parameters
-        return 1 / (np.linspace(np.ones(n + 1), np.ones(n + 1) * (n + 1), n + 1) + np.arange(n + 1))
-        
-        
+        u, d = self.params
+        return 1 / (
+            np.linspace(np.ones(n + 1), np.ones(n + 1) * (n + 1), n + 1)
+            + np.arange(n + 1)
+        )
+
+
 class Normal(Distribution):
     """
     Normal distribution.
     """
 
     _name = "Normal"
-    _parameter_names = ["mean", "stddev"]
+    _param_names = ["mean", "stddev"]
     _bounds = [(None, None), (0, None)]
 
     def get_gram_matrix(self, n):
         """
         Returns the Gram matrix for the distribution.
         """
-        mu, eta = self.parameters
+        mu, eta = self.params
         m = np.zeros((n + 1, n + 1))
 
         for idx, _ in np.ndenumerate(m):
@@ -125,6 +153,7 @@ class Normal(Distribution):
             m[idx] = np.exp(ind * mu + 0.5 * ind**2 * eta)
 
         return m
+
 
 class LogNormal(Distribution):
     """
@@ -132,14 +161,14 @@ class LogNormal(Distribution):
     """
 
     _name = "LogNormal"
-    _parameter_names = ["mean", "stddev"]
+    _param_names = ["mean", "stddev"]
     _bounds = [(None, None), (0, None)]
 
     def get_gram_matrix(self, n):
         """
         Returns the Gram matrix for the distribution.
         """
-        mu, eta = self.parameters
+        mu, eta = self.params
         m = np.zeros((n + 1, n + 1))
 
         for idx, _ in np.ndenumerate(m):
@@ -147,4 +176,3 @@ class LogNormal(Distribution):
             m[idx] = np.exp(ind * mu + 0.5 * ind**2 * eta)
 
         return m
-    
