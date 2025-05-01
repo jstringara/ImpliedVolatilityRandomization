@@ -1,4 +1,5 @@
 import numpy as np
+from typing import ClassVar
 from pydantic import BaseModel, PrivateAttr
 
 
@@ -7,10 +8,10 @@ class Distribution(BaseModel):
     Base class for all distributions.
     """
 
-    _name: PrivateAttr[str]
-    _parameter_names: PrivateAttr[list[str]]
+    _name: ClassVar[str] = PrivateAttr()
+    _parameter_names: ClassVar[list[str]] = PrivateAttr()
+    _bounds: ClassVar[list[tuple]] = PrivateAttr()
     parameters: list[float]
-    _bounds: PrivateAttr[list[tuple]]
 
     def get_gram_matrix(self):
         """
@@ -47,10 +48,9 @@ class Gamma(Distribution):
     Gamma distribution.
     """
 
-    _name: str = "Gamma"
-    _parameter_names: list[str] = ["shape", "scale"]
-    parameters: list[float] = [1.0, 1.0]
-    _bounds: list[tuple] = [(0, None), (0, None)]
+    _name = "Gamma"
+    _parameter_names = ["shape", "scale"]
+    _bounds = [(0, None), (0, None)]
 
     def get_gram_matrix(self, n):
         """
@@ -70,10 +70,9 @@ class Beta(Distribution):
     Beta distribution.
     """
 
-    _name: str = "Beta"
-    _parameter_names: list[str] = ["alpha", "beta"]
-    parameters: list[float] = [1.0, 1.0]
-    _bounds: list[tuple] = [(0, None), (0, None)]
+    _name = "Beta"
+    _parameter_names = ["alpha", "beta"]
+    _bounds = [(0, None), (0, None)]
 
     def get_gram_matrix(self, n):
         """
@@ -93,10 +92,9 @@ class Uniform(Distribution):
     Uniform distribution.
     """
 
-    _name: str = "Uniform"
-    _parameter_names: list[str] = ["lower", "upper"]
-    parameters: list[float] = [0.0, 1.0]
-    _bounds: list[tuple] = [(None, None), (None, None)]
+    _name = "Uniform"
+    _parameter_names = ["lower", "upper"]
+    _bounds = [(None, None), (None, None)]
 
     def get_gram_matrix(self, n):
         """
@@ -111,10 +109,9 @@ class Normal(Distribution):
     Normal distribution.
     """
 
-    _name: str = "Normal"
-    _parameter_names: list[str] = ["mean", "stddev"]
-    parameters: list[float] = [0.0, 1.0]
-    _bounds: list[tuple] = [(None, None), (0, None)]
+    _name = "Normal"
+    _parameter_names = ["mean", "stddev"]
+    _bounds = [(None, None), (0, None)]
 
     def get_gram_matrix(self, n):
         """
@@ -134,10 +131,9 @@ class LogNormal(Distribution):
     Log-normal distribution.
     """
 
-    _name: str = "LogNormal"
-    _parameter_names: list[str] = ["mean", "stddev"]
-    parameters: list[float] = [0.0, 1.0]
-    _bounds: list[tuple] = [(None, None), (0, None)]
+    _name = "LogNormal"
+    _parameter_names = ["mean", "stddev"]
+    _bounds = [(None, None), (0, None)]
 
     def get_gram_matrix(self, n):
         """
