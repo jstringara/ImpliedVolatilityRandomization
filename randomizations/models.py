@@ -41,7 +41,7 @@ class Model(BaseModel):
         return self._default_bounds
 
     params: list[float] = []
-    bounds: list[tuple] = []
+    _bounds: list[tuple] = PrivateAttr(default_factory=list)
 
     @classmethod
     def params_dict_to_list(cls, params_dict) -> list[float]:
@@ -70,7 +70,8 @@ class Model(BaseModel):
 
     @model_validator(mode="after")
     def _validate_params(self):
-        self._validate_params_with_bounds(self.params, self.bounds)
+        self._bounds = self.default_bounds.copy()
+        self._validate_params_with_bounds(self.params, self._bounds)
         return self
 
     def _validate_params_with_bounds(
@@ -81,6 +82,8 @@ class Model(BaseModel):
         """
         if len(params) == 0:
             return
+        if not bounds:
+            bounds = self.default_bounds
         for i, (param, bound) in enumerate(zip(params, bounds)):
             if (bound[0] is not None and param < bound[0]) or (
                 bound[1] is not None and param > bound[1]
@@ -123,15 +126,14 @@ class Model(BaseModel):
             )
 
         self.params = initial_parameters.copy()
-        self.bounds = self.default_bounds.copy()
 
         self._validate_fixed_params(fixed_params)
         for name, value in fixed_params.items():
             idx = self.param_names.index(name)
             self.params[idx] = value
-            self.bounds[idx] = (value, value)
+            self._bounds[idx] = (value, value)
 
-        self._validate_params_with_bounds(self.params, self.bounds)
+        self._validate_params_with_bounds(self.params, self._bounds)
 
     def calibrate(
         self,
@@ -168,12 +170,12 @@ class Model(BaseModel):
 
         if verbose:
             print(f"[{self.name}] Initial parameters: {self.params}")
-            print(f"[{self.name}] Bounds: {self.bounds}")
+            print(f"[{self.name}] Bounds: {self._bounds}")
 
         result = basinhopping(
             objective,
             self.params,
-            minimizer_kwargs={"method": "L-BFGS-B", "bounds": self.bounds},
+            minimizer_kwargs={"method": "L-BFGS-B", "bounds": self._bounds},
             niter=n_iter,
             disp=verbose,
         )
