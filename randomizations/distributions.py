@@ -54,11 +54,8 @@ class Distribution(BaseModel):
         Returns the collocation points for the distribution.
         """
         m = self.get_gram_matrix(n, params)
-        print(f"Gram matrix: {m.shape}")
         r = np.linalg.cholesky(m).T
-        print(f"Cholesky factor: {r.shape}")
         a = self.get_alphas(r)
-        print(f"Alphas: {a}")
         b = self.get_betas(r)
         j = np.diag(a) + np.diag(np.sqrt(b), 1) + np.diag(np.sqrt(b), -1)
         x, W = np.linalg.eig(j)
