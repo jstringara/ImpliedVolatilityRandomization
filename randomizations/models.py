@@ -3,6 +3,7 @@ from typing import ClassVar
 from pydantic import BaseModel, PrivateAttr, computed_field, model_validator
 from scipy.optimize import basinhopping
 
+from general.hagan import hagan_implied_volatility
 from general.util import black76
 
 
@@ -44,35 +45,57 @@ class Model(BaseModel):
     _bounds: list[tuple] = PrivateAttr(default_factory=list)
 
     @classmethod
-    def params_dict_to_list(cls, params_dict) -> list[float]:
+    def _parse_params(
+        cls, params: np.ndarray | tuple | dict | list | None
+    ) -> list[float]:
         """
-        Convert the parameters dictionary to a list.
+        Parse and convert the input parameters into a list of floats.
+        Supports numpy arrays, tuples, dictionaries, lists, or None.
         """
-        if len(params_dict) != len(cls.param_names):
-            raise ValueError(
-                f"Expected {len(cls.param_names)} parameters, got {len(params_dict)}"
-            )
-        if params_dict.keys() != set(cls.param_names):
-            raise ValueError(
-                f"Expected parameters {cls.param_names}, got {params_dict.keys()}"
-            )
-        return [params_dict[name] for name in cls.param_names]
+        if params is None:
+            return []
+
+        if isinstance(params, np.ndarray):
+            if len(params) != len(cls._param_names):
+                raise ValueError(
+                    f"Expected {len(cls._param_names)} parameters, got {len(params)}"
+                )
+            return params.tolist()
+
+        if isinstance(params, tuple):
+            if len(params) != len(cls._param_names):
+                raise ValueError(
+                    f"Expected {len(cls._param_names)} parameters, got {len(params)}"
+                )
+            return list(params)
+
+        if isinstance(params, dict):
+            if len(params) != len(cls._param_names):
+                raise ValueError(
+                    f"Expected {len(cls._param_names)} parameters, got {len(params)}"
+                )
+            if params.keys() != set(cls._param_names):
+                raise ValueError(
+                    f"Expected parameters {cls._param_names}, got {params.keys()}"
+                )
+            return [params[name] for name in cls._param_names]
+
+        if isinstance(params, list):
+            if len(params) != len(cls._param_names):
+                raise ValueError(
+                    f"Expected {len(cls._param_names)} parameters, got {len(params)}"
+                )
+            return params
+
+        raise ValueError(
+            f"Invalid type for params: {type(params)}. Expected list, tuple, dict, numpy array, or None."
+        )
 
     @model_validator(mode="before")
     @classmethod
     def _parse_input_params(cls, values):
-        raw_params = values.get("params")
-        if isinstance(raw_params, dict):
-            values["params"] = cls.params_dict_to_list(raw_params)
-        elif raw_params is None:
-            values["params"] = []
+        values["params"] = cls._parse_params(values.get("params"))
         return values
-
-    @model_validator(mode="after")
-    def _validate_params(self):
-        self._bounds = self.default_bounds.copy()
-        self._validate_params_with_bounds(self.params, self._bounds)
-        return self
 
     def _validate_params_with_bounds(
         self, params: list[float], bounds: list[tuple]
@@ -91,6 +114,12 @@ class Model(BaseModel):
                 raise ValueError(
                     f"Parameter {self.param_names[i]} out of bounds: {param} not in {bound}"
                 )
+
+    @model_validator(mode="after")
+    def _validate_params(self):
+        self._bounds = self.default_bounds.copy()
+        self._validate_params_with_bounds(self.params, self._bounds)
+        return self
 
     def _validate_fixed_params(self, fixed_params: dict[str, float]) -> None:
         """
@@ -118,14 +147,10 @@ class Model(BaseModel):
         """
         Set the parameters and bounds, fixing any parameters as needed.
         """
-        if isinstance(initial_parameters, dict):
-            initial_parameters = self.params_dict_to_list(initial_parameters)
-        if len(initial_parameters) != len(self.param_names):
-            raise ValueError(
-                f"Expected {len(self.param_names)} parameters, got {len(initial_parameters)}"
-            )
+        initial_parameters = self._parse_params(initial_parameters)
 
         self.params = initial_parameters.copy()
+        self._bounds = self.default_bounds.copy()
 
         self._validate_fixed_params(fixed_params)
         for name, value in fixed_params.items():
@@ -134,6 +159,41 @@ class Model(BaseModel):
             self._bounds[idx] = (value, value)
 
         self._validate_params_with_bounds(self.params, self._bounds)
+
+    def prices(
+        self,
+        spot: float,
+        k: np.ndarray,
+        t: float,
+        r: float,
+        params: list | dict | np.ndarray | None = None,
+    ) -> np.ndarray:
+        """
+        Return model prices for a set of strikes.
+        """
+        if params is None:
+            params = self.params
+        else:
+            params = self._parse_params(params)
+
+        f = spot * np.exp(r * t)
+        ivs = self.ivs(spot, k, t, r, params)
+        return black76(f, k, t, r, ivs)
+
+    def ivs(
+        self,
+        spot: float,
+        k: np.ndarray,
+        t: float,
+        r: float,
+        params: list | dict | np.ndarray | None = None,
+    ) -> np.ndarray:
+        """
+        Return model implied volatilities for a set of strikes.
+        """
+        raise NotImplementedError(
+            f"Method ivs not implemented for {self.__class__.__name__}. Please implement it in the subclass."
+        )
 
     def calibrate(
         self,
@@ -157,20 +217,19 @@ class Model(BaseModel):
         initial_parameters: Initial guess for the model parameters
         """
 
-        def objective(params: list) -> float:
-            self.params = params
-            try:
-                model_ivs = np.array(self.ivs(spot, k, t, r))
-                return np.mean((model_ivs - market_ivs) ** 2)
-            except Exception as e:
-                print(f"[SABR] Error in objective function: {e} with params: {params}")
-                return np.inf
-
         self.set_params_and_bounds(initial_parameters, fixed_params)
 
         if verbose:
             print(f"[{self.name}] Initial parameters: {self.params}")
             print(f"[{self.name}] Bounds: {self._bounds}")
+
+        def objective(params: list) -> float:
+            try:
+                model_ivs = np.array(self.ivs(spot, k, t, r, params))
+                return np.mean((model_ivs - market_ivs) ** 2)
+            except Exception as e:
+                print(f"[SABR] Error in objective function: {e} with params: {params}")
+                return np.inf
 
         result = basinhopping(
             objective,
@@ -180,22 +239,6 @@ class Model(BaseModel):
             disp=verbose,
         )
         self.params = result.x.tolist()
-
-    def prices(self, spot: float, k: np.ndarray, t: float, r: float) -> np.ndarray:
-        """
-        Return model prices for a set of strikes.
-        """
-        f = spot * np.exp(r * t)
-        ivs = self.ivs(spot, k, t, r)
-        return black76(f, k, t, r, ivs)
-
-    def ivs(self, spot: float, k: np.ndarray, t: float, r: float) -> np.ndarray:
-        """
-        Return model implied volatilities for a set of strikes.
-        """
-        raise NotImplementedError(
-            f"Method ivs not implemented for {self.__class__.__name__}. Please implement it in the subclass."
-        )
 
 
 class SABR(Model):
@@ -213,66 +256,15 @@ class SABR(Model):
     ]
 
     def ivs(
-        self, spot: float, K: np.ndarray, T: float, r: float, params: list[float] = None
+        self, spot: float, k: np.ndarray, t: float, r: float, params: list[float] = None
     ) -> np.ndarray:
         """
         Return model implied volatilities for a set of strikes.
         """
-        f = spot * np.exp(r * T)
+        f = spot * np.exp(r * t)
         if params is None:
             params = self.params
-        beta = self.params[self.param_names.index("beta")]
-        alpha = self.params[self.param_names.index("alpha")]
-        rho = self.params[self.param_names.index("rho")]
-        gamma = self.params[self.param_names.index("gamma")]
+        else:
+            params = self._parse_params(params)
 
-        # We make sure that the input is of array type
-        if type(K) is float:
-            K = np.array([K])
-        if type(K) is not np.ndarray:
-            K = np.array(K).reshape([len(K), 1])
-        z = gamma / alpha * np.power(f * K, (1.0 - beta) / 2.0) * np.log(f / K)
-        x_z = np.log((np.sqrt(1.0 - 2.0 * rho * z + z * z) + z - rho) / (1.0 - rho))
-        A = alpha / (
-            np.power(f * K, ((1.0 - beta) / 2.0))
-            * (
-                1.0
-                + np.power(1.0 - beta, 2.0) / 24.0 * np.power(np.log(f / K), 2.0)
-                + np.power((1.0 - beta), 4.0) / 1920.0 * np.power(np.log(f / K), 4.0)
-            )
-        )
-        B1 = (
-            1.0
-            + (
-                np.power((1.0 - beta), 2.0)
-                / 24.0
-                * alpha
-                * alpha
-                / (np.power((f * K), 1 - beta))
-                + 1
-                / 4
-                * (rho * beta * gamma * alpha)
-                / (np.power((f * K), ((1.0 - beta) / 2.0)))
-                + (2.0 - 3.0 * rho * rho) / 24.0 * gamma * gamma
-            )
-            * T
-        )
-        imp_vol = A * (z / x_z) * B1
-        B2 = (
-            1.0
-            + (
-                np.power(1.0 - beta, 2.0)
-                / 24.0
-                * alpha
-                * alpha
-                / (np.power(f, 2.0 - 2.0 * beta))
-                + 1.0 / 4.0 * (rho * beta * gamma * alpha) / np.power(f, (1.0 - beta))
-                + (2.0 - 3.0 * rho * rho) / 24.0 * gamma * gamma
-            )
-            * T
-        )
-
-        # Special treatment for ATM strike price
-        if len(np.where(K == f)[0]) > 0:
-            imp_vol[np.where(K == f)] = alpha / np.power(f, (1 - beta)) * B2
-        return imp_vol.squeeze()
+        return hagan_implied_volatility(k, t, f, *params)

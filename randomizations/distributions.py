@@ -8,6 +8,8 @@ class Distribution(BaseModel):
     Base class for all distributions.
     """
 
+    _epsilon: ClassVar[float] = 1e-5
+
     _name: ClassVar[str] = PrivateAttr()
 
     @property
@@ -32,30 +34,31 @@ class Distribution(BaseModel):
             raise ValueError("Child class must define _bounds.")
         return self._bounds
 
-    params: list[float] = []
-
-    def get_gram_matrix(self):
+    def get_gram_matrix(self, n: int, params: list[float]) -> np.ndarray:
         """
         Returns the Gram matrix for the distribution.
         """
         raise NotImplementedError("Subclasses must implement this method.")
 
-    def get_alphas(r):
+    def get_alphas(self, r):
         return [
             r[j, j + 1] / r[j, j] - r[j - 1, j] / r[j - 1, j - 1]
             for j in range(len(r) - 1)
         ]
 
-    def get_betas(r):
+    def get_betas(self, r):
         return [(r[j + 1, j + 1] / r[j, j]) ** 2 for j in range(0, len(r) - 2)]
 
-    def collocation_points(self, n):
+    def collocation_points(self, n, params):
         """
         Returns the collocation points for the distribution.
         """
-        m = self.get_gram_matrix(n)
+        m = self.get_gram_matrix(n, params)
+        print(f"Gram matrix: {m.shape}")
         r = np.linalg.cholesky(m).T
+        print(f"Cholesky factor: {r.shape}")
         a = self.get_alphas(r)
+        print(f"Alphas: {a}")
         b = self.get_betas(r)
         j = np.diag(a) + np.diag(np.sqrt(b), 1) + np.diag(np.sqrt(b), -1)
         x, W = np.linalg.eig(j)
@@ -73,13 +76,13 @@ class Gamma(Distribution):
 
     _name = "Gamma"
     _param_names = ["shape", "scale"]
-    _bounds = [(0, None), (0, None)]
+    _bounds = [(Distribution._epsilon, None), (Distribution._epsilon, None)]
 
-    def get_gram_matrix(self, n):
+    def get_gram_matrix(self, n, params):
         """
         Returns the Gram matrix for the distribution.
         """
-        k, theta = self.params
+        k, theta = params
         m = np.zeros((n + 1, n + 1))
 
         for idx, _ in np.ndenumerate(m):
@@ -96,13 +99,13 @@ class Beta(Distribution):
 
     _name = "Beta"
     _param_names = ["alpha", "beta"]
-    _bounds = [(0, None), (0, None)]
+    _bounds = [(Distribution._epsilon, None), (Distribution._epsilon, None)]
 
-    def get_gram_matrix(self, n):
+    def get_gram_matrix(self, n, params):
         """
         Returns the Gram matrix for the distribution.
         """
-        alpha, beta = self.params
+        alpha, beta = params
         m = np.zeros((n + 1, n + 1))
 
         for idx, _ in np.ndenumerate(m):
@@ -121,11 +124,11 @@ class Uniform(Distribution):
     _param_names = ["lower", "upper"]
     _bounds = [(None, None), (None, None)]
 
-    def get_gram_matrix(self, n):
+    def get_gram_matrix(self, n, params):
         """
         Returns the Gram matrix for the distribution.
         """
-        u, d = self.params
+        u, d = params
         return 1 / (
             np.linspace(np.ones(n + 1), np.ones(n + 1) * (n + 1), n + 1)
             + np.arange(n + 1)
@@ -139,13 +142,13 @@ class Normal(Distribution):
 
     _name = "Normal"
     _param_names = ["mean", "stddev"]
-    _bounds = [(None, None), (0, None)]
+    _bounds = [(None, None), (Distribution._epsilon, None)]
 
-    def get_gram_matrix(self, n):
+    def get_gram_matrix(self, n, params):
         """
         Returns the Gram matrix for the distribution.
         """
-        mu, eta = self.params
+        mu, eta = params
         m = np.zeros((n + 1, n + 1))
 
         for idx, _ in np.ndenumerate(m):
@@ -162,13 +165,13 @@ class LogNormal(Distribution):
 
     _name = "LogNormal"
     _param_names = ["mean", "stddev"]
-    _bounds = [(None, None), (0, None)]
+    _bounds = [(None, None), (Distribution._epsilon, None)]
 
-    def get_gram_matrix(self, n):
+    def get_gram_matrix(self, n, params):
         """
         Returns the Gram matrix for the distribution.
         """
-        mu, eta = self.params
+        mu, eta = params
         m = np.zeros((n + 1, n + 1))
 
         for idx, _ in np.ndenumerate(m):
