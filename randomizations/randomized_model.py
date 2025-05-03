@@ -1,3 +1,7 @@
+import os
+import logging
+import json
+from datetime import datetime
 import numpy as np
 from typing import ClassVar, List, Dict, Optional
 from pydantic import BaseModel, model_validator, PrivateAttr, computed_field
@@ -13,6 +17,10 @@ class RandomizedModel(BaseModel):
     """
     Randomized model for option pricing and implied volatility.
     """
+
+    model_config = {
+        "arbitrary_types_allowed": True,
+    }
 
     # Class variables
     n_col_points: ClassVar[int] = 2
@@ -98,9 +106,144 @@ class RandomizedModel(BaseModel):
             self._default_bounds += self.distribution.bounds.copy()
         return self._default_bounds
 
+    _log_file: str = PrivateAttr(default_factory=str)
+
+    @computed_field
+    @property
+    def log_file(self) -> str:
+        """
+        Return the log file name.
+        """
+        if not self._log_file:
+            # check that the directory exists
+            log_dir = os.path.join(os.path.dirname(__file__), "logs")
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+            self._log_file = os.path.join(
+                os.path.dirname(__file__),
+                "logs",
+                f"{self.name}.log",
+            )
+        return self._log_file
+
+    _logger: logging.Logger = PrivateAttr(default_factory=logging.getLogger)
+
+    @computed_field
+    @property
+    def logger(self) -> logging.Logger:
+        """
+        Return the logger for the model.
+        """
+        self._logger = logging.getLogger(self.name)
+        if not self._logger.handlers:
+            # Create a file handler
+            file_handler = logging.FileHandler(self.log_file)
+            file_handler.setLevel(logging.INFO)
+
+            # Create a formatter and set it for the handler
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            file_handler.setFormatter(formatter)
+            # Add the handler to the logger
+            self._logger.addHandler(file_handler)
+            self._logger.setLevel(logging.INFO)
+
+        return self._logger
+
+    _params_file: str = PrivateAttr(default_factory=str)
+
+    @computed_field
+    @property
+    def params_file(self) -> str:
+        """
+        Return the parameters file name.
+        """
+        if not self._params_file:
+            # check that the directory exists
+            params_dir = os.path.join(os.path.dirname(__file__), "calibrations")
+            if not os.path.exists(params_dir):
+                os.makedirs(params_dir)
+            self._params_file = os.path.join(
+                os.path.dirname(__file__),
+                "calibrations",
+                f"{self.name}.json",
+            )
+        return self._params_file
+
     # Parameters
     params: Optional[list[float]] = []
     _bounds: List[tuple] = PrivateAttr(default_factory=list)
+
+    def _log(self, message: str, level: str = "info") -> None:
+        """
+        Log a message to the log file.
+        """
+        if level == "info":
+            self.logger.info(message)
+        elif level == "error":
+            self.logger.error(message)
+        elif level == "warning":
+            self.logger.warning(message)
+        else:
+            raise ValueError(f"Invalid log level: {level}")
+        print(message)
+
+    def to_dict(self) -> dict:
+        """
+        Convert the model to a dictionary.
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        params_dict = {
+            name: value for name, value in zip(self.param_names, self.params)
+        }
+        return {
+            "date": timestamp,
+            **params_dict,
+        }
+
+    def load_params(self, index: int = None) -> None:
+        """
+        Load the model from the save file.
+        """
+        # check that the file exists
+        if not os.path.exists(self.params_file):
+            raise FileNotFoundError(f"File {self.params_file} does not exist.")
+        index = index if index is not None else -1
+        with open(self.params_file, "r") as f:
+            data = json.load(f)
+        # check that the index is valid
+        if index < -len(data) or index >= len(data):
+            raise IndexError(
+                f"Index {index} out of range. File contains {len(data)} entries."
+            )
+        # load the parameters
+        params = data[index]
+        timestamp = params.pop("date")
+        # check that the parameters are valid
+        if len(params) != len(self.param_names):
+            raise ValueError(
+                f"Expected {len(self.param_names)} parameters, got {len(params)}"
+            )
+        # set the parameters
+        self.params = [params[name] for name in self.param_names]
+        self._log(f"Loaded parameters: {self.params} with timestamp: {timestamp}")
+
+    def save_params(self) -> None:
+        """
+        Save the parameters to a file.
+        """
+        # if the file does not exist, create it
+        if os.path.exists(self.params_file):
+            with open(self.params_file, "r") as f:
+                data = json.load(f)
+        else:
+            os.makedirs(os.path.dirname(self.params_file), exist_ok=True)
+            data = []
+        # append the data to the file
+        data.append(self.to_dict())
+        with open(self.params_file, "w") as f:
+            json.dump(data, f, indent=4)
 
     @staticmethod
     def _parse_params(
@@ -295,12 +438,8 @@ class RandomizedModel(BaseModel):
 
         self.set_params_and_bounds(initial_parameters, fixed_params)
 
-        # self._log(f"Starting calibration with initial parameters: {self.params}")
-        # self._log(f"Bounds: {self._bounds}")
-
-        print(f"Initial parameters: {self.params}")
-        print(f"Bounds: {self._bounds}")
-        print(f"Default bounds: {self.default_bounds}")
+        self._log(f"Starting calibration with initial parameters: {self.params}")
+        self._log(f"Bounds: {self._bounds}")
 
         def objective(params: list) -> float:
             try:
@@ -308,12 +447,9 @@ class RandomizedModel(BaseModel):
                 model_ivs = np.array(self.ivs(spot, k, t, r))
                 return np.mean((model_ivs - market_ivs) ** 2)
             except Exception as e:
-                # self._log(
-                #     f"[RandSABR] Error in objective function: {e} with params: {params}",
-                #     level="error",
-                # )
-                print(
-                    f"[RandSABR] Error in objective function: {e} with params: {params}"
+                self._log(
+                    f"[{self.name}] Error in objective function: {e} with params: {params}",
+                    level="error",
                 )
                 return np.inf
 
@@ -326,5 +462,7 @@ class RandomizedModel(BaseModel):
         )
 
         self.params = result.x.tolist()  # convert to list
-        # self._log(f"Calibration completed. Calibrated parameters: {self.params}")
-        # self.save_params()
+        self._log(
+            f"[{self.name}] Calibration completed. Calibrated parameters: {self.params}"
+        )
+        self.save_params()
