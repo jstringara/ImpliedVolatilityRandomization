@@ -458,7 +458,10 @@ class RandomizedModel(BaseModel):
             self.params,
             minimizer_kwargs={"method": "L-BFGS-B", "bounds": self._bounds},
             niter=n_iter,
-            disp=verbose,
+            callback=lambda x, f, accept: self._log(
+                f"Iteration result: params={x}, objective={f}, accepted={accept}"
+            ),
+            disp=False,  # Suppress direct output to stdout
         )
 
         self.params = result.x.tolist()  # convert to list
