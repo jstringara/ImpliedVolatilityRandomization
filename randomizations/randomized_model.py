@@ -461,7 +461,7 @@ class RandomizedModel(BaseModel):
             callback=lambda x, f, accept: self._log(
                 f"Iteration result: params={x}, objective={f}, accepted={accept}"
             ),
-            disp=False,  # Suppress direct output to stdout
+            disp=verbose,
         )
 
         self.params = result.x.tolist()  # convert to list
