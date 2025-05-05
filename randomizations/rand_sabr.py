@@ -42,10 +42,10 @@ class RandSABR(BaseModel):
 
     # Logging and parameter storage
     log_file: ClassVar[str] = os.path.join(
-        os.path.dirname(__file__), "Logs", "RandSABR.log"
+        os.path.dirname(__file__), "logs", "RandSABR.log"
     )
     params_file: ClassVar[str] = os.path.join(
-        os.path.dirname(__file__), "Calibrations", "RandSABR_params.json"
+        os.path.dirname(__file__), "calibrations", "RandSABR_params.json"
     )
 
     # Initialize logger
@@ -88,7 +88,7 @@ class RandSABR(BaseModel):
             raise ValueError("No parameters to save.")
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         serialized_params = self.to_dict()
-        
+
         if not os.path.exists(os.path.dirname(self.params_file)):
             os.makedirs(os.path.dirname(self.params_file))
 
@@ -128,7 +128,9 @@ class RandSABR(BaseModel):
         self._log(f"Loaded parameters for timestamp {timestamp}: {self.params}")
 
     @classmethod
-    def _parse_params(cls, params: np.ndarray | tuple | dict | list | None) -> List[float]:
+    def _parse_params(
+        cls, params: np.ndarray | tuple | dict | list | None
+    ) -> List[float]:
         """
         Parse and convert the input parameters into a list of floats.
         Supports numpy arrays, tuples, dictionaries, lists, or None.
@@ -226,7 +228,7 @@ class RandSABR(BaseModel):
         """
         if len(self.params) == 0:
             raise ValueError("Parameters not set.")
-        return self.params[self.non_randomized_params_end:]
+        return self.params[self.non_randomized_params_end :]
 
     @property
     def non_randomized_params(self) -> List[float]:
@@ -235,7 +237,7 @@ class RandSABR(BaseModel):
         """
         if len(self.params) == 0:
             raise ValueError("Parameters not set.")
-        return self.params[:self.non_randomized_params_end]
+        return self.params[: self.non_randomized_params_end]
 
     def set_params_and_bounds(
         self,
