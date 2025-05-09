@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import numpy as np
 import pandas as pd
-from randomizations.rand_sabr import RandSABR
-from randomizations.sabr import SABR  # Import the new SABR class
+from randomizations.randomized_model import RandomizedModel
+from randomizations.models import SABR
+from randomizations.distributions import Gamma
 from general.util import imply_volatility
+import time  # Import the time module
 
 """
 This script extends the functionality of the original run_randomized_sabr.py script by including
@@ -71,15 +73,43 @@ if __name__ == "__main__":
 
         # Calibrate RandSABR parameters
         print(f"Calibrating RandSABR parameters for {month}...")
-        calibrated_rand_sabr = RandSABR(fixed_params={"beta": 0.9})
-        calibrated_rand_sabr.calibrate(
-            spot, k, t, r, iv, rand_sabr_initial_params, n_iter=10, verbose=True
+        start_time = time.time()  # Start timing
+        calibrated_rand_sabr = RandomizedModel(
+            model=SABR(),
+            distribution=Gamma(),
+            randomized_param="gamma",
         )
+        calibrated_rand_sabr.calibrate(
+            spot,
+            k,
+            t,
+            r,
+            iv,
+            rand_sabr_initial_params,
+            fixed_params={"beta": 0.9},
+            n_iter=20,
+            verbose=True,
+        )
+        rand_sabr_duration = time.time() - start_time  # End timing
+        print(f"RandSABR calibration for {month} took {rand_sabr_duration:.2f} seconds.")
 
         # Calibrate SABR parameters
         print(f"Calibrating SABR parameters for {month}...")
-        calibrated_sabr = SABR(fixed_params={"beta": 0.9})
-        calibrated_sabr.calibrate(spot, k, t, r, iv, sabr_initial_params, n_iter=10, verbose=True)
+        start_time = time.time()  # Start timing
+        calibrated_sabr = SABR()
+        calibrated_sabr.calibrate(
+            spot,
+            k,
+            t,
+            r,
+            iv,
+            sabr_initial_params,
+            fixed_params={"beta": 0.9},
+            n_iter=20,
+            verbose=True,
+        )
+        sabr_duration = time.time() - start_time  # End timing
+        print(f"SABR calibration for {month} took {sabr_duration:.2f} seconds.")
 
         # For the plot we prefer a uniform grid
         k_uni = np.linspace(k[0] / spot, k[-1] / spot, 100) * spot
@@ -89,7 +119,12 @@ if __name__ == "__main__":
         calibrated_sabr_prices = calibrated_sabr.prices(spot, k_uni, t, r)
 
         # Get the prices and implied volatilities of the pre-calibrated models
-        pre_calibrated_rand_sabr = RandSABR(params=pre_calibrated_rand_sabr_params)
+        pre_calibrated_rand_sabr = RandomizedModel(
+            model=SABR(),
+            distribution=Gamma(),
+            randomized_param="gamma",
+            params=pre_calibrated_rand_sabr_params,
+        )
         pre_calibrated_sabr = SABR(params=pre_calibrated_sabr_params)
 
         pre_calibrated_rand_sabr_prices = pre_calibrated_rand_sabr.prices(

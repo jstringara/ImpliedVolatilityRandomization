@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import numpy as np
 import pandas as pd
-from randomizations.rand_sabr import RandSABR
+from randomizations.randomized_model import RandomizedModel
+from randomizations.models import SABR
+from randomizations.distributions import Gamma
 from general.util import imply_volatility
 from general.hagan import hagan_implied_volatility
 
@@ -51,7 +53,12 @@ if __name__ == "__main__":
 
         t = (eDate - today).days / 365
         k, iv = np.array(data.index), data.values
-        randomized_sabr = RandSABR(params_rand=param, n_col_points=2)
+        randomized_sabr = RandomizedModel(
+            model=SABR(),
+            distribution=Gamma(),
+            randomized_param="gamma",
+            params=param,
+        )
 
         # For the plot we prefer a uniform grid
         k_uni = np.linspace(k[0] / spot, k[-1] / spot, 100) * spot
