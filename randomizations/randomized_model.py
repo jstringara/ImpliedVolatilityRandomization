@@ -23,7 +23,7 @@ class RandomizedModel(BaseModel):
     }
 
     # Class variables
-    n_col_points: ClassVar[int] = 2
+    n_col_points: int = 2
 
     model: Model
     distribution: Distribution
@@ -398,7 +398,9 @@ class RandomizedModel(BaseModel):
         prices_for_params = [self.model.prices(spot, k, t, r, p) for p in params]
         return (weights[:, np.newaxis] * prices_for_params).sum(axis=0)
 
-    def ivs(self, spot: float, k: np.ndarray, t: float, r: float) -> np.ndarray:
+    def ivs(
+        self, spot: float, k: np.ndarray, t: float, r: float, order: int = 6
+    ) -> np.ndarray:
         """
         Return model implied volatilities for a set of strikes.
         Compute implied volatilities by mixing over randomization.
@@ -411,7 +413,7 @@ class RandomizedModel(BaseModel):
             m = np.log(spot / strike) + r * t
             ivs_at_strike = np.array([ivs[strike_idx] for ivs in model_ivs])
             sigma0 = get_sigma_0(t, weights, ivs_at_strike)
-            ivs_mixed.append(get_sigma_approx(m, t, sigma0, weights, ivs_at_strike))
+            ivs_mixed.append(get_sigma_approx(m, t, sigma0, weights, ivs_at_strike, order))
         return ivs_mixed
 
     def calibrate(

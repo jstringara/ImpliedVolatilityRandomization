@@ -2,7 +2,9 @@ from datetime import date
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import numpy as np
-from randomizations.rand_flat import RandomizedFlatModel
+from randomizations.randomized_model import RandomizedModel
+from randomizations.models import Flat
+from randomizations.distributions import LogNormal
 from general.util import imply_volatility
 
 """
@@ -31,7 +33,13 @@ if __name__ == "__main__":
 
     # Run two randomization with parameters as
     for i, params in enumerate(rand_params):
-        model = RandomizedFlatModel(params_rand=params, n_col_points=4)
+        model = RandomizedModel(
+            model=Flat(),
+            distribution=LogNormal(),
+            randomized_param="sigma",
+            params=params,
+            n_col_points=4,
+        )
         prices = model.prices(spot, k, t, r)
 
         # Reference implied volatilites using Brent
@@ -43,7 +51,10 @@ if __name__ == "__main__":
         ivs_approx6 = np.array(model.ivs(spot, k, t, r, 6))
 
         # Plot all the results
-        axs[i].set_title(r"Randomized Flat Volatility: $(\mu,\nu)=$" + f"{params[0],params[1]}", size=20)
+        axs[i].set_title(
+            r"Randomized Flat Volatility: $(\mu,\nu)=$" + f"{params[0], params[1]}",
+            size=20,
+        )
         axs[i].set_xlabel(r"$m = \log (S_0/K) + rT $", size=20)
         axs[i].set_ylabel("Implied Volatility [%]", size=20)
         axs[i].plot(
