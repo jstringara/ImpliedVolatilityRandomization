@@ -12,7 +12,11 @@ def calibration_hagan(K, t, iv, f, beta, iv_atm):
     # Random initial guess
     initial = np.array([-0.5, 0.6])
     pars = minimize(
-        f_obj, initial, bounds=[(-1, 1), (0, 100)], method="nelder-mead", options={"disp": False, "xatol": 1e-9}
+        f_obj,
+        initial,
+        bounds=[(-1, 1), (0, 100)],
+        method="nelder-mead",
+        options={"disp": False, "xatol": 1e-9},
     )
     rho_est = pars.x[0]
     gamma_est = pars.x[1]
@@ -21,7 +25,12 @@ def calibration_hagan(K, t, iv, f, beta, iv_atm):
 
 
 def determine_optimal_alpha(iv_atm, k_atm, t, f, beta, rho, gamma):
-    target = lambda alpha: hagan_implied_volatility([k_atm], t, f, beta, alpha, rho, gamma).squeeze() - iv_atm
+    target = (
+        lambda alpha: hagan_implied_volatility(
+            [k_atm], t, f, beta, alpha, rho, gamma
+        ).squeeze()
+        - iv_atm
+    )
     # Initial guess does not really matter here
     alpha_est = newton(target, 1.05, tol=1e-7)
     return alpha_est
@@ -56,8 +65,15 @@ def hagan_implied_volatility(K, T, f, beta, alpha, rho, gamma):
     B1 = (
         1.0
         + (
-            np.power((1.0 - beta), 2.0) / 24.0 * alpha * alpha / (np.power((f * K), 1 - beta))
-            + 1 / 4 * (rho * beta * gamma * alpha) / (np.power((f * K), ((1.0 - beta) / 2.0)))
+            np.power((1.0 - beta), 2.0)
+            / 24.0
+            * alpha
+            * alpha
+            / (np.power((f * K), 1 - beta))
+            + 1
+            / 4
+            * (rho * beta * gamma * alpha)
+            / (np.power((f * K), ((1.0 - beta) / 2.0)))
             + (2.0 - 3.0 * rho * rho) / 24.0 * gamma * gamma
         )
         * T
@@ -66,7 +82,11 @@ def hagan_implied_volatility(K, T, f, beta, alpha, rho, gamma):
     B2 = (
         1.0
         + (
-            np.power(1.0 - beta, 2.0) / 24.0 * alpha * alpha / (np.power(f, 2.0 - 2.0 * beta))
+            np.power(1.0 - beta, 2.0)
+            / 24.0
+            * alpha
+            * alpha
+            / (np.power(f, 2.0 - 2.0 * beta))
             + 1.0 / 4.0 * (rho * beta * gamma * alpha) / np.power(f, (1.0 - beta))
             + (2.0 - 3.0 * rho * rho) / 24.0 * gamma * gamma
         )

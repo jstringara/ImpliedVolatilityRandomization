@@ -242,6 +242,7 @@ class Model(BaseModel):
 
         return result.fun
 
+
 class SABR(Model):
     """
     Classical deterministic SABR model.

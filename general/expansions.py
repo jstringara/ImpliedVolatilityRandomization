@@ -64,4 +64,9 @@ def get_sigma_approx(m, T, sigma_0, weights, ivs, order=6):
     elif order == 4:
         return sigma_0 + sigma_2 / 2.0 * m**2 + sigma_4 / 24.0 * m**4
     elif order == 6:
-        return sigma_0 + sigma_2 / 2.0 * m**2 + sigma_4 / 24.0 * m**4 + sigma_6 / 720.0 * m**6
+        return (
+            sigma_0
+            + sigma_2 / 2.0 * m**2
+            + sigma_4 / 24.0 * m**4
+            + sigma_6 / 720.0 * m**6
+        )

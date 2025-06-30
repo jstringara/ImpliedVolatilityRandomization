@@ -28,7 +28,12 @@ if __name__ == "__main__":
     today = date(2024, 7, 31)
     fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(15, 11))
 
-    expiryDates = [date(2024, 8, 16), date(2024, 9, 20), date(2024, 10, 18), date(2024, 11, 15)]
+    expiryDates = [
+        date(2024, 8, 16),
+        date(2024, 9, 20),
+        date(2024, 10, 18),
+        date(2024, 11, 15),
+    ]
     months = ["August", "September", "October", "November"]
     rand_sabr_params = np.array(
         [
@@ -68,7 +73,14 @@ if __name__ == "__main__":
         # 6th order ivs
         randomized_ivs = randomized_sabr.ivs(spot, k_uni, t, r)
         # Plotting
-        ax.plot(k / spot, 100 * iv, "x", label="Market Quote", markersize=7, color="sandybrown")
+        ax.plot(
+            k / spot,
+            100 * iv,
+            "x",
+            label="Market Quote",
+            markersize=7,
+            color="sandybrown",
+        )
         ax.plot(
             k_uni / spot,
             100 * imply_volatility(randomized_prices, spot, k_uni, t, r, 0.4),
@@ -90,7 +102,8 @@ if __name__ == "__main__":
 
         ax.plot(
             k_uni / spot,
-            100 * hagan_implied_volatility(k_uni, t, spot * np.exp(r * t), *sabr_params),
+            100
+            * hagan_implied_volatility(k_uni, t, spot * np.exp(r * t), *sabr_params),
             label="Regular SABR",
             marker="o",
             linestyle="dashdot",
@@ -102,7 +115,7 @@ if __name__ == "__main__":
         ax.grid()
         ax.set_xlabel("Strike (relative to ATM) ", size=20)
         ax.set_ylabel("Implied Volatility [%]", size=20)
-        ax.set_title(f"{month} (TTM {np.round(t,2)}y)", size=20)
+        ax.set_title(f"{month} (TTM {np.round(t, 2)}y)", size=20)
         ax.set_xlim([k[0] / spot, k[-1] / spot])
         l = ax.legend(prop={"size": 10}, fancybox=True, shadow=True)
         l.get_frame().set_edgecolor("black")

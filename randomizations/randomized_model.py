@@ -414,7 +414,9 @@ class RandomizedModel(BaseModel):
             m = np.log(spot / strike) + r * t
             ivs_at_strike = np.array([ivs[strike_idx] for ivs in model_ivs])
             sigma0 = get_sigma_0(t, weights, ivs_at_strike)
-            ivs_mixed.append(get_sigma_approx(m, t, sigma0, weights, ivs_at_strike, order))
+            ivs_mixed.append(
+                get_sigma_approx(m, t, sigma0, weights, ivs_at_strike, order)
+            )
         return ivs_mixed
 
     def calibrate(
@@ -443,7 +445,7 @@ class RandomizedModel(BaseModel):
 
         self._log(f"Starting calibration with initial parameters: {self.params}")
         self._log(f"Bounds: {self._bounds}")
-        
+
         # Start timing
         start_time = time.time()
 
@@ -472,7 +474,7 @@ class RandomizedModel(BaseModel):
 
         # Calculate elapsed time
         elapsed_time = time.time() - start_time
-        
+
         if elapsed_time < 60:
             time_str = f"{elapsed_time:.2f} seconds"
         else:
@@ -487,5 +489,5 @@ class RandomizedModel(BaseModel):
  Final objective function value: {final_objective_value}"""
         )
         self.save_params()
-        
+
         return final_objective_value
