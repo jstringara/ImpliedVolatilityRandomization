@@ -29,6 +29,15 @@ if __name__ == "__main__":
         date(2024, 11, 15),
     ]
     months = ["August", "September", "October", "November"]
+    
+    # Initialize RMSE storage
+    rmse_data = {
+        "Calibrated RandSABR": [],
+        "Calibrated SABR": [],
+        "Pre-calibrated RandSABR": [],
+        "Pre-calibrated SABR": []
+    }
+    
     rand_sabr_params = np.array(
         [
             [0.9, 0.33414235, -0.6907052, 1.70409171, 1.4284071],
@@ -77,7 +86,7 @@ if __name__ == "__main__":
             distribution=Gamma(),
             randomized_param="gamma",
         )
-        calibrated_rand_sabr.calibrate(
+        mse_calibrated_rand_sabr = calibrated_rand_sabr.calibrate(
             spot,
             k,
             t,
@@ -88,11 +97,12 @@ if __name__ == "__main__":
             n_iter=20,
             verbose=True,
         )
+        rmse_data["Calibrated RandSABR"].append(np.sqrt(mse_calibrated_rand_sabr))
 
         # Calibrate SABR parameters
         print(f"Calibrating SABR parameters for {month}...")
         calibrated_sabr = SABR()
-        calibrated_sabr.calibrate(
+        mse_calibrated_sabr = calibrated_sabr.calibrate(
             spot,
             k,
             t,
@@ -103,6 +113,7 @@ if __name__ == "__main__":
             n_iter=20,
             verbose=True,
         )
+        rmse_data["Calibrated SABR"].append(np.sqrt(mse_calibrated_sabr))
 
         # For the plot we prefer a uniform grid
         k_uni = np.linspace(k[0] / spot, k[-1] / spot, 100) * spot
@@ -129,6 +140,20 @@ if __name__ == "__main__":
             f"Calibrated RandSABR Parameters for {month}: {calibrated_rand_sabr.params}"
         )
         print(f"Calibrated SABR Parameters for {month}: {calibrated_sabr.params}")
+        
+        pre_calibrated_sabr_implied_vol = imply_volatility(
+            pre_calibrated_sabr_prices, spot, k_uni, t, r, 0.4
+        )
+        pre_calibrated_rand_sabr_implied_vol = imply_volatility(
+            pre_calibrated_rand_sabr_prices, spot, k_uni, t, r, 0.4
+        )
+
+        rmse_data["Pre-calibrated RandSABR"] = np.sqrt(
+            np.mean((iv - pre_calibrated_rand_sabr_implied_vol) ** 2)
+        )
+        rmse_data["Pre-calibrated SABR"] = np.sqrt(
+            np.mean((iv - pre_calibrated_sabr_implied_vol) ** 2)
+        )
 
         # Plot the market data
         ax.plot(
@@ -200,3 +225,19 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig("Plots/randomized_sabr_with_calibration.png", dpi=300)
     plt.show()
+    
+    # Create and display RMSE table
+    rmse_df = pd.DataFrame(rmse_data, index=months)
+    rmse_df = rmse_df.T  # Transpose to have models as rows and months as columns
+    
+    print("\n### RMSE Comparison Table (%)\n")
+    print("| Model                    | August   | September | October  | November |")
+    print("|--------------------------|----------|-----------|----------|----------|")
+    
+    for model_name, row in rmse_df.iterrows():
+        print(f"| {model_name:<24} | {row['August']*100:<8.4f} | {row['September']*100:<9.4f} | {row['October']*100:<8.4f} | {row['November']*100:<8.4f} |")
+    print()
+    
+    # Save RMSE table to CSV
+    rmse_df.to_csv("Results/rmse_comparison.csv")
+    print(f"RMSE table saved to Results/rmse_comparison.csv")
