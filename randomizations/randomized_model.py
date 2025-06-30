@@ -1,6 +1,7 @@
 import os
 import logging
 import json
+import time
 from datetime import datetime
 import numpy as np
 from typing import ClassVar, List, Dict, Optional
@@ -427,7 +428,7 @@ class RandomizedModel(BaseModel):
         fixed_params: dict[str, float] = {},
         n_iter: int = 10,
         verbose: bool = False,
-    ) -> None:
+    ) -> float:
         """
         Calibrates the RandSABR model parameters using market data and saves them to params.
         spot: Current spot price
@@ -442,6 +443,9 @@ class RandomizedModel(BaseModel):
 
         self._log(f"Starting calibration with initial parameters: {self.params}")
         self._log(f"Bounds: {self._bounds}")
+        
+        # Start timing
+        start_time = time.time()
 
         def objective(params: list) -> float:
             try:
@@ -466,8 +470,22 @@ class RandomizedModel(BaseModel):
             disp=verbose,
         )
 
+        # Calculate elapsed time
+        elapsed_time = time.time() - start_time
+        
+        if elapsed_time < 60:
+            time_str = f"{elapsed_time:.2f} seconds"
+        else:
+            elapsed_minutes = elapsed_time // 60
+            elapsed_seconds = elapsed_time % 60
+            time_str = f"{elapsed_minutes} minutes and {elapsed_seconds} seconds"
+
         self.params = result.x.tolist()  # convert to list
+        final_objective_value = result.fun
         self._log(
-            f"[{self.name}] Calibration completed. Calibrated parameters: {self.params}"
+            f"""[{self.name}] Calibration completed in {time_str}. Calibrated parameters: {self.params}
+ Final objective function value: {final_objective_value}"""
         )
         self.save_params()
+        
+        return final_objective_value

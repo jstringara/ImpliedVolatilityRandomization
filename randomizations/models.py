@@ -206,7 +206,7 @@ class Model(BaseModel):
         fixed_params: dict[str, float] = {},
         n_iter: int = 10,
         verbose: bool = False,
-    ) -> None:
+    ) -> float:
         """
         Calibrates the model parameters using market data and saves them to params.
         spot: Current spot price
@@ -240,6 +240,7 @@ class Model(BaseModel):
         )
         self.params = result.x.tolist()
 
+        return result.fun
 
 class SABR(Model):
     """
