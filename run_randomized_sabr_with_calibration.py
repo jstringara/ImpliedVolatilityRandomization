@@ -7,7 +7,6 @@ from randomizations.randomized_model import RandomizedModel
 from randomizations.models import SABR
 from randomizations.distributions import Gamma
 from general.util import imply_volatility
-import time  # Import the time module
 
 """
 This script extends the functionality of the original run_randomized_sabr.py script by including
@@ -73,7 +72,6 @@ if __name__ == "__main__":
 
         # Calibrate RandSABR parameters
         print(f"Calibrating RandSABR parameters for {month}...")
-        start_time = time.time()  # Start timing
         calibrated_rand_sabr = RandomizedModel(
             model=SABR(),
             distribution=Gamma(),
@@ -90,12 +88,9 @@ if __name__ == "__main__":
             n_iter=20,
             verbose=True,
         )
-        rand_sabr_duration = time.time() - start_time  # End timing
-        print(f"RandSABR calibration for {month} took {rand_sabr_duration:.2f} seconds.")
 
         # Calibrate SABR parameters
         print(f"Calibrating SABR parameters for {month}...")
-        start_time = time.time()  # Start timing
         calibrated_sabr = SABR()
         calibrated_sabr.calibrate(
             spot,
@@ -108,8 +103,6 @@ if __name__ == "__main__":
             n_iter=20,
             verbose=True,
         )
-        sabr_duration = time.time() - start_time  # End timing
-        print(f"SABR calibration for {month} took {sabr_duration:.2f} seconds.")
 
         # For the plot we prefer a uniform grid
         k_uni = np.linspace(k[0] / spot, k[-1] / spot, 100) * spot
