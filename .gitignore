@@ -191,6 +191,7 @@ cython_debug/
 
 # Ignore all picture and image files
 Plots/
+Results/
 
 # Ignore all the saved calibrations
 randomizations/Calibrations/
