@@ -61,7 +61,9 @@ def double_factorial(n):
 
 
 def get_alphas(r):
-    return [r[j, j + 1] / r[j, j] - r[j - 1, j] / r[j - 1, j - 1] for j in range(len(r) - 1)]
+    return [
+        r[j, j + 1] / r[j, j] - r[j - 1, j] / r[j - 1, j - 1] for j in range(len(r) - 1)
+    ]
 
 
 def get_betas(r):
@@ -70,7 +72,9 @@ def get_betas(r):
 
 def get_gram_matrix_uniform(n, eta):
     u, d = eta
-    return 1 / (np.linspace(np.ones(n + 1), np.ones(n + 1) * (n + 1), n + 1) + np.arange(n + 1))
+    return 1 / (
+        np.linspace(np.ones(n + 1), np.ones(n + 1) * (n + 1), n + 1) + np.arange(n + 1)
+    )
 
 
 def get_col_points(n, parameters, type="n"):

@@ -32,7 +32,9 @@ def dK(
     sigma: float,
 ):
     """Calculates BS price for array of strikes and vols"""
-    d2 = (np.log(S / K) + (r + sigma**2 / 2) * T) / (sigma * np.sqrt(T)) - sigma * np.sqrt(T)
+    d2 = (np.log(S / K) + (r + sigma**2 / 2) * T) / (
+        sigma * np.sqrt(T)
+    ) - sigma * np.sqrt(T)
     return -np.exp(-r * T) * N(d2)
 
 
@@ -66,6 +68,9 @@ def imply_volatility(v, s, k, t, r, iv_init, isCall=True):
     """Implies Black-Scholes volatility given an option price using root finder"""
     option_price = lambda sigma: black_scholes(s, k, t, r, sigma, isCall)
     optimized = [
-        root(lambda sigma: v[j] - option_price(sigma)[j], iv_init, options={"xtol": 1e-4}) for j in range(len(k))
+        root(
+            lambda sigma: v[j] - option_price(sigma)[j], iv_init, options={"xtol": 1e-4}
+        )
+        for j in range(len(k))
     ]
     return np.array([optim.x if optim.success else np.nan for optim in optimized])

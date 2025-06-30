@@ -29,15 +29,15 @@ if __name__ == "__main__":
         date(2024, 11, 15),
     ]
     months = ["August", "September", "October", "November"]
-    
+
     # Initialize RMSE storage
     rmse_data = {
         "Calibrated RandSABR": [],
         "Calibrated SABR": [],
         "Pre-calibrated RandSABR": [],
-        "Pre-calibrated SABR": []
+        "Pre-calibrated SABR": [],
     }
-    
+
     rand_sabr_params = np.array(
         [
             [0.9, 0.33414235, -0.6907052, 1.70409171, 1.4284071],
@@ -140,7 +140,7 @@ if __name__ == "__main__":
             f"Calibrated RandSABR Parameters for {month}: {calibrated_rand_sabr.params}"
         )
         print(f"Calibrated SABR Parameters for {month}: {calibrated_sabr.params}")
-        
+
         pre_calibrated_sabr_implied_vol = imply_volatility(
             pre_calibrated_sabr_prices, spot, k_uni, t, r, 0.4
         )
@@ -225,19 +225,21 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig("Plots/randomized_sabr_with_calibration.png", dpi=300)
     plt.show()
-    
+
     # Create and display RMSE table
     rmse_df = pd.DataFrame(rmse_data, index=months)
     rmse_df = rmse_df.T  # Transpose to have models as rows and months as columns
-    
+
     print("\n### RMSE Comparison Table (%)\n")
     print("| Model                    | August   | September | October  | November |")
     print("|--------------------------|----------|-----------|----------|----------|")
-    
+
     for model_name, row in rmse_df.iterrows():
-        print(f"| {model_name:<24} | {row['August']*100:<8.4f} | {row['September']*100:<9.4f} | {row['October']*100:<8.4f} | {row['November']*100:<8.4f} |")
+        print(
+            f"| {model_name:<24} | {row['August'] * 100:<8.4f} | {row['September'] * 100:<9.4f} | {row['October'] * 100:<8.4f} | {row['November'] * 100:<8.4f} |"
+        )
     print()
-    
+
     # Save RMSE table to CSV
     rmse_df.to_csv("Results/rmse_comparison.csv")
     print(f"RMSE table saved to Results/rmse_comparison.csv")
