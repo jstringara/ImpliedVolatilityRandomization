@@ -339,7 +339,7 @@ wheels = [
 [[package]]
 name = "tesi"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "matplotlib" },
     { name = "pandas" },

@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import numpy as np
 import pandas as pd
-from randomizations.randomized_model import RandomizedModel
-from randomizations.models import SABR
-from randomizations.distributions import Gamma
-from general.util import imply_volatility
+from VolatilityRandomization import RandomizedModel
+from VolatilityRandomization.models import SABR
+from VolatilityRandomization.distributions import Gamma
+from VolatilityRandomization.general.util import imply_volatility
 
 """
 This script extends the functionality of the original run_randomized_sabr.py script by including
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         rand_sabr_params,
         sabr_params,
     ):
-        data = pd.read_csv(f"Data/{month}.csv", index_col=0).squeeze()
+        data = pd.read_csv(f"data/{month}.csv", index_col=0).squeeze()
 
         t = (eDate - today).days / 365
         k, iv = np.array(data.index), data.values
@@ -148,11 +148,11 @@ if __name__ == "__main__":
             pre_calibrated_rand_sabr_prices, spot, k_uni, t, r, 0.4
         )
 
-        rmse_data["Pre-calibrated RandSABR"] = np.sqrt(
-            np.mean((iv - pre_calibrated_rand_sabr_implied_vol) ** 2)
+        rmse_data["Pre-calibrated RandSABR"].append(
+            np.sqrt(np.mean((iv - pre_calibrated_rand_sabr_implied_vol) ** 2))
         )
-        rmse_data["Pre-calibrated SABR"] = np.sqrt(
-            np.mean((iv - pre_calibrated_sabr_implied_vol) ** 2)
+        rmse_data["Pre-calibrated SABR"].append(
+            np.sqrt(np.mean((iv - pre_calibrated_sabr_implied_vol) ** 2))
         )
 
         # Plot the market data
@@ -223,7 +223,7 @@ if __name__ == "__main__":
         fontweight="bold",
     )
     plt.tight_layout()
-    plt.savefig("Plots/randomized_sabr_with_calibration.png", dpi=300)
+    plt.savefig("outputs/figs/randomized_sabr_with_calibration.png", dpi=300)
     plt.show()
 
     # Create and display RMSE table
@@ -241,5 +241,5 @@ if __name__ == "__main__":
     print()
 
     # Save RMSE table to CSV
-    rmse_df.to_csv("Results/rmse_comparison.csv")
-    print(f"RMSE table saved to Results/rmse_comparison.csv")
+    rmse_df.to_csv("outputs/results/rmse_comparison.csv")
+    print(f"RMSE table saved to outputs/results/rmse_comparison.csv")
