@@ -189,10 +189,15 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Ignore all picture and image files
-Plots/
-Results/
+# Ignore compiled files in randomizations
+*.pyc
 
-# Ignore all the saved calibrations
-randomizations/Calibrations/
-randomizations/Logs/
+# Output folders
+outputs/figs/
+outputs/results/
+
+# Saved calibrations and logs
+outputs/calibrations/*
+!outputs/calibrations/.gitkeep
+outputs/logs/*
+!outputs/logs/.gitkeep

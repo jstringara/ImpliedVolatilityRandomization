@@ -2,10 +2,10 @@ from datetime import date
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import numpy as np
-from randomizations.randomized_model import RandomizedModel
-from randomizations.models import Flat
-from randomizations.distributions import LogNormal
-from general.util import imply_volatility
+from VolatilityRandomization.core.randomized_model import RandomizedModel
+from VolatilityRandomization.models import Flat
+from VolatilityRandomization.distributions import LogNormal
+from VolatilityRandomization.general.util import imply_volatility
 
 """
 This simple example runs the flat randomization to produce a volatility smile with two parameters. 
@@ -97,5 +97,5 @@ if __name__ == "__main__":
         l = axs[i].legend(prop={"size": 15}, fancybox=True, shadow=True)
         l.get_frame().set_edgecolor("black")
     plt.tight_layout()
-    plt.savefig("Plots/randomized.flat.png", dpi=300)
+    plt.savefig("outputs/figs/randomized.flat.png", dpi=300)
     plt.show()
