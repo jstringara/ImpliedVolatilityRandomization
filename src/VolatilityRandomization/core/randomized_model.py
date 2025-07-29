@@ -8,10 +8,11 @@ from typing import ClassVar, List, Dict, Optional
 from pydantic import BaseModel, model_validator, PrivateAttr, computed_field
 from scipy.optimize import basinhopping
 
-from general.expansions import get_sigma_0, get_sigma_approx
+from VolatilityRandomization.general.expansions import get_sigma_0, get_sigma_approx
 
-from randomizations.distributions import Distribution
-from randomizations.models import Model
+from VolatilityRandomization.distributions import Distribution
+from VolatilityRandomization.models import Model
+from VolatilityRandomization.config import get_output_dir
 
 
 class RandomizedModel(BaseModel):
@@ -112,19 +113,9 @@ class RandomizedModel(BaseModel):
     @computed_field
     @property
     def log_file(self) -> str:
-        """
-        Return the log file name.
-        """
         if not self._log_file:
-            # check that the directory exists
-            log_dir = os.path.join(os.path.dirname(__file__), "logs")
-            if not os.path.exists(log_dir):
-                os.makedirs(log_dir)
-            self._log_file = os.path.join(
-                os.path.dirname(__file__),
-                "logs",
-                f"{self.name}.log",
-            )
+            log_dir = get_output_dir("logs")
+            self._log_file = os.path.join(log_dir, f"{self.name}.log")
         return self._log_file
 
     _logger: logging.Logger = PrivateAttr(default_factory=logging.getLogger)
@@ -157,19 +148,9 @@ class RandomizedModel(BaseModel):
     @computed_field
     @property
     def params_file(self) -> str:
-        """
-        Return the parameters file name.
-        """
         if not self._params_file:
-            # check that the directory exists
-            params_dir = os.path.join(os.path.dirname(__file__), "calibrations")
-            if not os.path.exists(params_dir):
-                os.makedirs(params_dir)
-            self._params_file = os.path.join(
-                os.path.dirname(__file__),
-                "calibrations",
-                f"{self.name}.json",
-            )
+            param_dir = get_output_dir("calibrations")
+            self._params_file = os.path.join(param_dir, f"{self.name}.json")
         return self._params_file
 
     # Parameters
@@ -379,6 +360,16 @@ class RandomizedModel(BaseModel):
             self._bounds[idx] = (value, value)
 
         self._validate_params_with_bounds(self.params, self._bounds)
+
+    def params_dict_to_list(self, params_dict: dict[str, float]) -> list[float]:
+        """
+        Convert a dictionary of parameters to a list according to param_names.
+        """
+        if set(params_dict.keys()) != set(self.param_names):
+            raise ValueError(
+                f"Parameter dictionary keys {params_dict.keys()} do not match expected param names {self.param_names}"
+            )
+        return [params_dict[name] for name in self.param_names]
 
     def _generate_param_sets(self) -> tuple[np.ndarray, list[list[float]]]:
         """

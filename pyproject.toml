@@ -1,12 +1,26 @@
 [project]
 name = "tesi"
 version = "0.1.0"
-description = "Add your description here"
+description = "Volatility randomization framework with extensible models and distributions."
 readme = "README.md"
 requires-python = ">=3.13"
+license = { text = "MIT" }
+
 dependencies = [
     "matplotlib>=3.10.1",
     "pandas>=2.2.3",
     "pydantic>=2.11.0",
     "scipy>=1.15.2",
 ]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["VolatilityRandomization*"]
+exclude = ["tests*", "scripts*", "outputs*"]

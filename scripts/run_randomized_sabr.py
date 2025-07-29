@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import numpy as np
 import pandas as pd
-from randomizations.randomized_model import RandomizedModel
-from randomizations.models import SABR
-from randomizations.distributions import Gamma
-from general.util import imply_volatility
-from general.hagan import hagan_implied_volatility
+from VolatilityRandomization import RandomizedModel
+from VolatilityRandomization.models import SABR
+from VolatilityRandomization.distributions import Gamma
+from VolatilityRandomization.general.util import imply_volatility
+from VolatilityRandomization.general.hagan import hagan_implied_volatility
 
 """
 Runs the SABR randomization on the SPX option quotes in the Data folder. 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     for i, ax, eDate, month, param, sabr_params in zip(
         range(4), axs.flatten(), expiryDates, months, rand_sabr_params, sabr_params
     ):
-        data = pd.read_csv(f"Data/{month}.csv", index_col=0).squeeze()
+        data = pd.read_csv(f"data/{month}.csv", index_col=0).squeeze()
 
         t = (eDate - today).days / 365
         k, iv = np.array(data.index), data.values
@@ -119,7 +119,10 @@ if __name__ == "__main__":
         ax.set_xlim([k[0] / spot, k[-1] / spot])
         l = ax.legend(prop={"size": 10}, fancybox=True, shadow=True)
         l.get_frame().set_edgecolor("black")
+    import os
     plt.suptitle("SPX Option Chain 2024-07-31", fontsize=22, fontweight="bold")
     plt.tight_layout()
-    plt.savefig("Plots/randomized_sabr_with_data.png", dpi=300)
+    output_dir = "outputs/figs"
+    os.makedirs(output_dir, exist_ok=True)
+    plt.savefig(f"{output_dir}/randomized_sabr_with_data.png", dpi=300)
     plt.show()
