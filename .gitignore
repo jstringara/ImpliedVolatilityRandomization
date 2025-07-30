@@ -201,3 +201,26 @@ outputs/calibrations/*
 !outputs/calibrations/.gitkeep
 outputs/logs/*
 !outputs/logs/.gitkeep
+
+# Intermediate and output files
+*.aux
+*.bbl
+*.blg
+*.brf
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.nav
+*.snm
+*.vrb
+
+# Output PDFs
+*.pdf
+
+# Example files
+thesis/examples/
