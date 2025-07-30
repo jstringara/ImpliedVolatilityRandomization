@@ -12,6 +12,11 @@
 \usepackage{eso-pic} % For the background picture on the title page
 \usepackage{subfig} % Numbered and caption subfigures using \subfloat
 \usepackage{caption} % Coloured captions
+
+\makeatletter
+\providecommand\IfPDFManagementActiveF[1]{#1} % fallback for older pdf management
+\makeatother
+
 \usepackage{transparent}
 
 % STANDARD MATH PACKAGES
