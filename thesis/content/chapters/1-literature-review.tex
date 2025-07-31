@@ -1,34 +1,46 @@
 \section{Literature Review and Analysis}
 
 \subsection{Problem Setting}
-In financial markets, the pricing of vanilla european options (either calls or puts) is a fundamental task that relies on the accurate estimation of the underlying asset's volatility.
-Customarily, what markets quote is not directly the price of such options, but rather the \textbf{Black and Scholes implied volatility} surface $\hat{\sigma}(T,K)$, which is a function of time to maturity $T$ and strike price $K$.
-Therefore given a certain combination of time to maturity and strike price, the market will provide us with a value $\hat{\sigma}(T,K)$ that is the implied volatility of the option with such parameters such that the option's price can be expressed as:
+
+In financial markets, the pricing of vanilla European options, either calls or puts, is a fundamental task that hinges on the accurate estimation of the underlying asset's volatility.
+In practice, markets do not quote option prices directly, but rather the \textbf{Black-Scholes implied volatility}, denoted by $\hat{\sigma}(T, K)$, which depends on the option's time to maturity $T$ and strike price $K$.
+Given a particular combination of $(T, K)$, the market provides a value $\hat{\sigma}(T, K)$ such that the corresponding option price can be computed using the Black-Scholes formula:
 \begin{equation}
     V_c(T,K) = BS(t_0, S_0, T, K; \hat{\sigma}(T,K)),
 \end{equation}
 
-where $BS(t_0, S_0, T, K; \hat{\sigma}(T,K))$ is the Black-Scholes price of a European call option with strike $K$ and maturity $T$, evaluated at time $t_0$ with underlying asset price $S_0$ and implied volatility $\hat{\sigma}(T,K)$ and a constant risk-free interest rate $r$.
-As is well know, the Black-Scholes model assumes that the underlying asset price follows a geometric Brownian motion, which is unfortunately is known to be a poor approximation of real market dynamics.
-Usually we will find that the market provides us with a full set of quotes for a grid of maturities and strikes, which we can denote as:
+where $BS(t_0, S_0, T, K; \hat{\sigma}(T,K))$ denotes the Black-Scholes price of a European call option with strike $K$ and maturity $T$, evaluated at time $t_0$, given a spot price $S_0$, a constant risk-free rate $r$, and implied volatility $\hat{\sigma}(T, K)$.
+
+As is well known, the Black-Scholes model assumes that the underlying asset follows a geometric Brownian motion with constant volatility, a convenient but overly simplistic assumption that fails to reflect many features observed in real markets. Nevertheless, implied volatility serves as a standard market quoting convention, and practitioners work within this framework to price and hedge derivatives.
+
+Typically, market data consists of implied volatility quotes for a finite grid of strikes and maturities. We denote this discrete dataset as:
+
 \begin{equation}
-    \Theta_{mkt} = \{\hat{\sigma}_{mkt}(T_n, K_m) : 1 \leq n \leq N, 1 \leq m \leq M\},
+    \Theta_{\text{mkt}} = \left\{ \hat{\sigma}_{\text{mkt}}(T_n, K_m) : 1 \leq n \leq N,\ 1 \leq m \leq M \right\}.
 \end{equation}
 
-Unfortunately, usually market quotes are rather sparse, and we will not have a full grid of quotes for all possible (or indeed for any useful combination of) maturities and strikes.
-This is especially true for markets with low liquidity, where we will have only a few quotes for each maturity and strike.
-This is a major problem since many financial applications require market makers to to be able to provide quotes for option combinations that are not directly quoted by the market (e.g. the combination $(T,K)$ for which we do not have a market quote).
-Therefore the problem of constructing a \textbf{clean implied volatility surface} $\hat{\sigma}(T,K)$ from the discrete and noisy market quotes $\Theta_{mkt}$ is a fundamental task in quantitative finance.
-More generally it can be said that the main problem is to extend the discrete market quotes $\Theta_{mkt}$ to a continuous (or even smooth) function $\hat{\sigma}(T,K): \Pi \rightarrow \mathbb{R}_+$ that provides implied volatility values for any desired combination of time to expiry and strike on domain $\Pi \subset (t_0, \infty) \times \mathbb{R}_+$.
+In liquid markets, this set may be fairly dense, but in many cases, especially for less liquid underlyings, only a sparse set of quotes may be observed, with limited coverage in both strike and maturity.
+This sparsity presents a major obstacle; in most real-world applications, one needs to produce implied volatility values for strike-maturity pairs that may not be directly quoted by the market.
+For example, a market maker may need to quote an option with a non-standard expiry, or a trader may need to evaluate the price of a structured product referencing off-grid options.
+The task, then, is to construct a \textbf{clean implied volatility surface} $\hat{\sigma}(T, K)$ from the discrete and potentially noisy market data $\Theta_{\text{mkt}}$.
+More precisely, we seek a function
+\[
+    \hat{\sigma}(T, K): \Pi \to \mathbb{R}_+,
+\]
+defined over a suitable domain $\Pi \subset (t_0, \infty) \times \mathbb{R}_+$, such that the resulting surface provides meaningful volatility values for any desired combination of time to maturity and strike price.
 
-As we have seen such an extension is not trivial, since two key properties must be satisfied by the resulting surface $\hat{\sigma}(T,K)$:
+This problem is far from trivial, as the resulting surface $\hat{\sigma}(T, K)$ must satisfy two essential properties:
 
 \begin{itemize}
-    \item \textbf{Consistency with market quotes}: The surface must match the market quotes $\hat{\sigma}_{mkt}(T_n, K_m)$ at the given maturities and strikes, meaning that for any $(T_n, K_m) \in \Theta_{mkt}$ we must have $\hat{\sigma}(T_n, K_m) = \hat{\sigma}_{mkt}(T_n, K_m)$.
-    \item \textbf{Arbitrage-free}: The surface must be free of static arbitrage opportunities, which means that the implied volatility must be consistent with the no-arbitrage pricing theory.
+    \item \textbf{Consistency with market data}: the surface must match the observed market quotes at the points where they are available.
+        That is, for any $(T_n, K_m) \in \Theta_{\text{mkt}}$, we must find that $\hat{\sigma}(T_n, K_m) = \hat{\sigma}_{\text{mkt}}(T_n, K_m)$.
+    \item \textbf{Absence of static arbitrage}: the surface must not allow for arbitrage opportunities when plugged into the Black-Scholes formula.
+        This means that the resulting option prices must respect key no-arbitrage conditions, such as monotonicity and convexity in strike, and the call-put calendar spread inequalities in maturity.
 \end{itemize}
 
-If and when such a surface is constructed, it can be then used to price a wide plethora of exotic derivatives, recreate the probability distribution of the underlying asset $S$, calibrate pricing models for exotic options or general trading purposes by assessing volatility expectations, arbitrage opportunities or for market makers to set the correct pricing of novel financial instruments.
+If such a surface can be constructed, one that is both consistent with the market and arbitrage-free, it becomes a powerful tool.
+It allows for pricing of exotic derivatives, reconstruction of the risk-neutral distribution of the underlying asset, model calibration, and the generation of synthetic quotes.
+Ultimately, it enables market participants to respond to pricing and risk management tasks with greater confidence and consistency, even in the absence of direct market observations.
 
 \subsection{Existing Literature}
 
