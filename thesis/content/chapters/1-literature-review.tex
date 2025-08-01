@@ -33,9 +33,9 @@ This problem is far from trivial, as the resulting surface $\hat{\sigma}(T, K)$ 
 
 \begin{itemize}
     \item \textbf{Consistency with market data}: the surface must match the observed market quotes at the points where they are available.
-        That is, for any $(T_n, K_m) \in \Theta_{\text{mkt}}$, we must find that $\hat{\sigma}(T_n, K_m) = \hat{\sigma}_{\text{mkt}}(T_n, K_m)$.
+          That is, for any $(T_n, K_m) \in \Theta_{\text{mkt}}$, we must find that $\hat{\sigma}(T_n, K_m) = \hat{\sigma}_{\text{mkt}}(T_n, K_m)$.
     \item \textbf{Absence of static arbitrage}: the surface must not allow for arbitrage opportunities when plugged into the Black-Scholes formula.
-        This means that the resulting option prices must respect key no-arbitrage conditions, such as monotonicity and convexity in strike, and the call-put calendar spread inequalities in maturity.
+          This means that the resulting option prices must respect key no-arbitrage conditions, such as monotonicity and convexity in strike, and the call-put calendar spread inequalities in maturity.
 \end{itemize}
 
 If such a surface can be constructed, one that is both consistent with the market and arbitrage-free, it becomes a powerful tool.
@@ -44,26 +44,69 @@ Ultimately, it enables market participants to respond to pricing and risk manage
 
 \subsection{Existing Literature}
 
-In recent decades, the modeling of implied volatility surfaces has emerged as a central problem in quantitative finance, due to its foundational role in derivative pricing, hedging, and risk management.
-The construction of clean implied volatility surfaces from discrete and noisy market option quotes is fundamental for pricing exotic derivatives, setting margin requirements, and enabling competitive market-making strategies.
-Traditional models, such as the Stochastic Volatility Inspired (SVI) and Stochastic Alpha Beta Rho (SABR) parametrizations, provide efficient and arbitrage-free representations of market-implied volatilities.
-However, these models often struggle to replicate the nuanced structures observed in real market conditions, especially under short maturities or near market events like earnings announcements.
-The essence of constructing an implied volatility surface is to encode discrete market quotes $\Theta_{mkt} = \{\hat{\sigma}_{mkt}(T_n, K_m) : 1 \leq n \leq N, 1 \leq m \leq M\}$ into a continuous function $\hat{\sigma}(T,K): \Pi \rightarrow \mathbb{R}_+$ that provides implied volatility values for any desired combination of time to expiry and strike on domain $\Pi \subset (t_0, \infty) \times \mathbb{R}_+$.
-The primary challenges are ensuring that the surface extends the discrete quotes while remaining free of static arbitrage opportunities.
+Implied volatility surface modeling has been extensively studied using stochastic and local volatility models, statistical analyses, arbitrage-aware interpolation schemes, and, more recently, machine learning techniques.
+A comprehensive review is provided by Homescu~\cite{homescu2011implied}.
+Here, we summarize and review the approaches most relevant to our methodology.
 
-In \textit{Volatility Parametrizations with Random Coefficients}, Zaugg, Perotti, and Grzelak (2024) \cite{zaugg2024volatility} propose a generalizable and analytically tractable extension to classical parametric volatility models through the \textbf{randomization of model parameters}.
-Their methodology addresses a critical gap in existing literature: the structural rigidity imposed by fixed-parameter surfaces that often leads to poor calibration or unrealistic parameter estimates when market conditions fall outside the parametrization's scope.
-Indeed classic models like SVI and SABR, while efficient, are limited in their ability to adapt to irregular market conditions due to their reliance on a family of curves defined by the parameter space.
+\subsubsection{Interpolation and Extrapolation Schemes}
 
-\subsection{Parametric vs. Interpolation Approaches}
+A common and straightforward method to construct an implied volatility surface is to interpolate and extrapolate the available market quotes, yielding a surface $\hat\sigma: (T,K) \mapsto \mathbb{R}_+$.
+However, interpolating directly in the implied volatilities space is known to produce surfaces that may violate arbitrage constraints, particularly the convexity of option prices with respect to the strike~\cite{andreasen2011volatility}.
+This issue becomes particularly problematic when the dataset is sparse, as the interpolation then determines much of the surface beyond the observed points, leading to financially implausible shapes.
 
-The literature presents two primary methodologies for constructing implied volatility surfaces: interpolation schemes and parametric approaches.
+To address this, several methods construct arbitrage-free surfaces by interpolating on option prices instead of implied volatilities~\cite{lefloch2021arbitrage, corbetta2019robust}.
+These approaches ensure consistency with no-arbitrage principles, but they require a numerical inversion, via root finding algorithms, of the Black-Scholes formula to recover implied volatilities, since the mapping from price to volatility is implicit.
+Interpolation schemes are attractive because they exactly match the observed market quotes $\Theta_{\text{mkt}}$ by construction.
+However, they often suffer from poor extrapolation behavior, especially when quotes are irregularly distributed or sparse~\cite{guo2016generalized}.
+Furthermore, interpolated surfaces may lack the smoothness and robustness required for risk management or model calibration.
 
-\textbf{Interpolation Methods}: This is the simplest approach, it involves direct interpolation and extrapolation of available volatility quotes.
-However, as demonstrated by Fengler (2005), such methods are generally not arbitrage-free since direct interpolation on the volatility surface often leads to non-convex option pricing functions. This mispricing is particularly problematic for assets with few available quotes, where interpolation determines a large portion of the surface. Arbitrage-free interpolation is feasible on option prices rather than implied volatilities, but requires root-finding algorithms to recover implied volatilities and remains challenging for illiquid markets.
+\subsubsection{Parametric Volatility Surfaces}
 
-\textbf{Parametric Approaches}: These methods define a family of smooth surfaces $\hat{\sigma}(T,K;\mathbf{p})$ parametrized by vector $\mathbf{p} \in \mathbb{R}^m$, with arbitrage-freeness guaranteed through parameter constraints. The surface is calibrated by minimizing differences to market quotes $\Theta_{mkt}$. While exact matching of market quotes is sacrificed, parametric methods offer several advantages: guaranteed arbitrage-freeness, interpretable parameters, and ability to generate surfaces from minimal market data.
+An alternative to interpolation is to define a family of parametric implied volatility surfaces indexed by a low-dimensional vector of parameters $\mathbf{p} \in \mathbb{R}^m$.
+This defines a family of smooth, arbitrage-free surfaces specified by a function:
+\[
+    \hat{\sigma}(T, K; \mathbf{p}): \Pi \to \mathbb{R}_+,
+\]
+where the surface is fit to market quotes by solving a calibration problem:
+\[
+    \mathbf{p}^* = \arg\min_{\mathbf{p}} \sum_{(T_n, K_m) \in \Theta_{\text{mkt}}} \| \hat{\sigma}(T_n, K_m; \mathbf{p}) - \hat{\sigma}_{\text{mkt}}(T_n, K_m) \|,
+\]
+for a suitable choice of norm $\|\cdot\|$.
+The ability to fit the market, therefore, directly depends on the “size” of the set of functions defined by $\{\hat{\sigma}(T, K; \mathbf{p})\}_{\mathbf{p} \in D}$, where $D \subseteq \mathbb{R}^m$ is the parameter space.
+Popular examples of such models include the Stochastic Volatility Inspired (SVI) parametrization introduced by Gatheral~\cite{gatheral2011volatility} and further refined into an arbitrage-free version with Jacquier~\cite{gatheral2014arbitrage}, as well as the SABR model of Hagan et al.~\cite{hagan2002managing}.
+These models are widely adopted due to their analytical tractability, ease of calibration, and robustness in sparse data regimes.
 
+A key advantage of parametric surfaces is their ability to enforce absence of arbitrage through structural constraints on the parameter space $\mathbf{p} \in D \subseteq \mathbb{R}^m$.
+In many cases, the models are derived from an underlying stochastic process for the asset, ensuring that arbitrage-free conditions are satisfied for any admissible parameter choice.
+For instance, both SVI and SABR offer closed-form or semi-analytical expressions for implied volatility, and their parameters directly reflect key features of the smile and term structure.
+
+This makes parametric models particularly appealing: they offer interpretability (e.g., linking parameters to skew or curvature), do not require a large number of quotes to produce a valid surface, and inherently preserve arbitrage-free properties.
+
+However, the main limitation of classical parametrizations is their lack of flexibility.
+When the true market-implied surface falls outside the functional class defined by the model, even the best-fitting parameter vector $\mathbf{p}^*$ may result in a poor approximation.
+This is particularly relevant for short-dated equity options near corporate events, such as earnings announcements, where implied volatility smiles may become ``W-shaped'' or ``mustache-shaped'', indicating bimodal risk-neutral densities.
+Such phenomena are well-documented by Glasserman and Pirjol~\cite{glasserman2023w} and Alexiou et al.~\cite{alexiou2023pricing}, and cannot be captured by standard diffusion-based models.
+
+\subsubsection{Randomized Parametrizations}
+
+To overcome the expressive limitations of classical models, recent work has introduced \textbf{randomized parametrizations}.
+Zaugg, Perotti, and Grzelak~\cite{zaugg2024volatility} propose a framework in which one or more deterministic parameters in a standard model, such as SABR, are replaced by random variables.
+The resulting implied volatility surface is then obtained by integrating over the distribution of these parameters, yielding enhanced flexibility while preserving analytical structure and arbitrage-freeness.
+
+This randomized approach effectively enlarges the space of volatility surfaces without increasing the dimensionality of the calibration problem.
+By specifying the distributional form of the random parameter(s) using a small set of additional hyperparameters, the authors retain tractability and control over the shape of the surface.
+In particular, they demonstrate strong calibration performance for short-dated SPX optIions (with maturities below six months), a region where traditional parametrizations often struggle.
+In practice we are effectively replacing a single deterministic volatility surface with a mixture of surfaces, each corresponding to a different realization of the random parameter(s).
+
+Moreover, Zaugg et al.\ also consider \textbf{spot price randomization}, a novel mechanism that models uncertainty in the initial asset value.
+This is especially relevant for near-expiry options subject to potential regime changes, such as equities approaching earnings announcements.
+In such scenarios, the implied volatility surface can display multi-modality that reflects the market's anticipation of discrete jumps in price.
+Spot randomization captures this behavior effectively, while ensuring the resulting surface remains arbitrage-free.
+
+These innovations offer a general and modular methodology to enrich existing volatility surface models.
+The approach is empirically validated through calibration examples on S\&P 500 and AMZN options, where the randomized models deliver better fits than their classical counterparts, especially in challenging market regimes.
+
+%% TODO work on this next section explaining the methodology of Zaugg et al. in more detail, including the randomization framework, discretization, and applications to short-dated options.
 \subsection{Parametric Volatility Surfaces and Their Limitations}
 
 Let $\hat{\sigma}(T, K; \mathbf{p})$ denote a classical implied volatility surface parametrized by a vector $\mathbf{p} \in \mathbb{R}^m$, defined over a domain $\Pi \subseteq (t_0, \infty) \times \mathbb{R}_+$.
