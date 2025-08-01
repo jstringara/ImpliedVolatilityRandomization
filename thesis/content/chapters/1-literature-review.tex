@@ -32,9 +32,9 @@ defined over a suitable domain $\Pi \subset (t_0, \infty) \times \mathbb{R}_+$, 
 This problem is far from trivial, as the resulting surface $\hat{\sigma}(T, K)$ must satisfy two essential properties:
 
 \begin{itemize}
-    \item \textbf{Consistency with market data}: the surface must match the observed market quotes at the points where they are available.
+    \item \textbf{Consistency with market data}: the surface should match the observed market quotes at the points where they are available.
           That is, for any $(T_n, K_m) \in \Theta_{\text{mkt}}$, we must find that $\hat{\sigma}(T_n, K_m) = \hat{\sigma}_{\text{mkt}}(T_n, K_m)$.
-    \item \textbf{Absence of static arbitrage}: the surface must not allow for arbitrage opportunities when plugged into the Black-Scholes formula.
+    \item \textbf{Absence of arbitrage}: the surface must not allow for arbitrage opportunities when plugged into the Black-Scholes formula.
           This means that the resulting option prices must respect key no-arbitrage conditions, such as monotonicity and convexity in strike, and the call-put calendar spread inequalities in maturity.
 \end{itemize}
 
@@ -105,113 +105,3 @@ Spot randomization captures this behavior effectively, while ensuring the result
 
 These innovations offer a general and modular methodology to enrich existing volatility surface models.
 The approach is empirically validated through calibration examples on S\&P 500 and AMZN options, where the randomized models deliver better fits than their classical counterparts, especially in challenging market regimes.
-
-%% TODO work on this next section explaining the methodology of Zaugg et al. in more detail, including the randomization framework, discretization, and applications to short-dated options.
-\subsection{Parametric Volatility Surfaces and Their Limitations}
-
-Let $\hat{\sigma}(T, K; \mathbf{p})$ denote a classical implied volatility surface parametrized by a vector $\mathbf{p} \in \mathbb{R}^m$, defined over a domain $\Pi \subseteq (t_0, \infty) \times \mathbb{R}_+$.
-Classical models such as SVI and SABR define such surfaces based on analytically tractable stochastic processes.
-These parametrizations are valued for their:
-
-\begin{itemize}
-    \item \textit{Arbitrage-free constraints}: ensured through structural properties of the surface or well-behaved parameter spaces;
-    \item \textit{Calibration efficiency}: due to closed-form or semi-closed-form pricing equations;
-    \item \textit{Interpretability}: model parameters have intuitive effects on smile, skew, and term structure;
-    \item \textit{Robustness}: ability to generate surfaces from limited market data without requiring minimum quote thresholds.
-\end{itemize}
-
-However, a major drawback arises when the true market surface lies outside the span of $\{\hat{\sigma}(T,K; \mathbf{p})\}_{\mathbf{p} \in D}$, resulting in model misspecification and poor market fit.
-This limitation manifests in two critical scenarios:
-
-\textbf{Systematic Limitations}: Certain market behaviors are fundamentally incompatible with classical parametrizations. For instance, short-maturity options in equity markets exhibit steeper at-the-money implied volatility term structures than those attainable under regular stochastic volatility models. This reflects the inability of single-factor diffusion models to capture the complex dynamics of near-expiry options.
-
-\textbf{Event-Driven Irregularities}: Markets can exhibit irregular behaviors during periods of heightened uncertainty. Very short-term options markets near earnings announcements commonly display W-shaped volatility curves or "mustache" shapes. These patterns arise from bimodal risk-neutral probability density functions reflecting the dichotomous nature of earnings outcomes. Classical diffusion models cannot replicate such multi-modal distributions due to their reliance on continuous diffusive drivers.
-
-\subsection{Challenges in Short-Term Options Modeling}
-
-The modeling of short-maturity options presents particular challenges that expose the limitations of traditional parametric approaches. Near-expiry options are characterized by:
-
-\begin{itemize}
-    \item \textit{Heightened sensitivity to discrete events}: Earnings announcements, regulatory decisions, or other binary outcomes can create bimodal risk-neutral densities.
-    \item \textit{Extreme volatility shapes}: W-shaped implied volatility curves that cannot be captured by standard one-factor models.
-    \item \textit{Rapid parameter changes}: Traditional calibration procedures may fail or yield extreme parameter values indicating model inconsistency.
-    \item \textit{Market microstructure effects}: Bid-ask spreads and liquidity constraints can distort implied volatility patterns.
-\end{itemize}
-
-These challenges highlight the industry's need for more flexible parametrizations that can adapt to irregular market conditions while preserving computational efficiency and arbitrage-freeness.
-
-\subsection{Randomization Framework}
-
-The authors propose enhancing the flexibility of $\hat{\sigma}(T,K; \mathbf{p})$ by replacing one or more parameters $p_i$ with a random variable $\vartheta$. The resulting implied volatility surface is derived from the expectation of the corresponding pricing function:
-
-\[
-    \hat{\sigma}(T,K) \text{ such that } BS(t_0, S_0, T, K; \hat{\sigma}(T,K)) = \mathbb{E}_{\vartheta}[V_c(T,K; p(\vartheta))].
-\]
-
-This yields a mixture model of option prices that remains arbitrage-free under mild regularity assumptions on $\vartheta$ and $\hat{\sigma}$. The authors show that the implied pricing function preserves convexity and monotonicity (conditions for butterfly and calendar spread arbitrage, respectively) through integral arguments and convex combinations of valid surfaces.
-
-The randomization framework draws inspiration from the RAnD (Risk and Drift) method while providing a more general and analytically tractable approach. By treating parameters as random variables rather than fixed constants, the method enables classical parametrizations to capture market behaviors previously outside their scope.
-
-\subsection{Discretization and Parametric Extension}
-
-To make this construction computationally feasible, the paper employs Gaussian quadrature to discretize the mixture:
-
-\[
-    V_c(T,K) \approx \sum_{n=1}^{N_q} \lambda_n V_c(T,K; p(\theta_n)).
-\]
-
-This transforms the randomized surface into an extended parametric form:
-\[
-    \hat{\sigma}(T,K; \mathbf{p}^*) = \text{BS}^{-1}\left(\sum_{n=1}^{N_q} \lambda_n V_c(T,K; p(\theta_n))\right),
-\]
-where $\mathbf{p}^*$ includes the original parameters (excluding $p_i$) and the distributional parameters of $\vartheta$ (e.g., $(\mu, \nu)$ for lognormal or $(k, \theta)$ for Gamma). The resulting model is therefore not only arbitrage-free but also retains parametric tractability with enhanced expressiveness.
-
-\subsection{Analytic Expansion of Implied Volatility}
-
-To avoid repeated root-finding, the authors derive a Taylor expansion of the randomized implied volatility function in terms of log-moneyness $m = \log(S_0/K) + rT$. Extending the approach of Brigo and Mercurio (2002), they express the implied volatility $\hat{\sigma}(T,K)$ as:
-
-\[
-    \hat{\sigma}(T,K) \approx P(0) + \frac{P^{(2)}(0)}{2!}m^2 + \frac{P^{(4)}(0)}{4!}m^4 + \frac{P^{(6)}(0)}{6!}m^6 + \mathcal{O}(m^8),
-\]
-
-where the coefficients $P^{(2i)}(0)$ are computed using the mixture weights and base volatilities. This expansion enables fast evaluation across large strike/time grids and is validated against root-finding solutions.
-
-\subsection{Applications and Empirical Evidence}
-
-\paragraph{1. Randomized Flat Volatility:}
-A trivial constant-volatility model, when randomized with a lognormal variable, can produce volatility smiles similar to real market shapes. The resulting model is parsimonious (only two parameters), efficient, and retains analytical tractability.
-
-\paragraph{2. Randomized SABR:}
-By randomizing the volatility-of-volatility parameter $\gamma$ in the SABR model using a Gamma distribution, the authors significantly improve the model's ability to fit short-maturity SPX options. The randomized model outperforms standard SABR in terms of sum and mean squared errors, and captures skew curvature more accurately, particularly for options with expiry dates of less than six months.
-
-\paragraph{3. Spot Price Randomization:}
-To model W-shaped or bimodal implied volatilities (as observed before earnings announcements), the authors propose randomizing the spot price $S_0$. This produces a mixture of shifted probability density functions and enables modeling of multi-modal risk-neutral densities. The resulting surfaces are shown to be arbitrage-free as long as the random spot is centered at $S_0$. This approach proves particularly effective for modeling near-maturity options preceding earnings announcements, where traditional parametrizations fail completely.
-
-\subsection{Position in Literature}
-
-This framework complements and extends several strands of the literature:
-
-\begin{itemize}
-    \item \textit{Parametric Models}: Offers more flexibility than SABR or SVI while retaining analytical structure and computational efficiency.
-    \item \textit{Mixture Models}: Provides a cleaner, parsimonious alternative to lognormal mixtures with fewer parameters and guaranteed arbitrage-freeness.
-    \item \textit{Machine Learning}: Maintains interpretability and arbitrage-freeness, unlike black-box neural network approaches that often struggle with financial constraints.
-    \item \textit{Market-Making Applications}: Enables practitioners to price options in extreme market conditions where traditional models fail, particularly important for liquidity providers in volatile markets.
-\end{itemize}
-
-The methodology addresses the fundamental trade-off between model flexibility and computational tractability that has long challenged practitioners. Unlike purely statistical or machine learning approaches, the randomization framework preserves the theoretical foundations of parametric models while extending their practical applicability.
-
-\subsection{Conclusion}
-
-The methodology introduced by Zaugg et al.\ strikes a balance between flexibility, computational efficiency, and financial interpretability. It enables classical models to adapt to irregular market conditions through controlled randomness, while preserving arbitrage constraints and maintaining calibration tractability.
-
-The framework is particularly valuable for addressing the limitations of parametric models in extreme market conditions, such as pre-earnings volatility spikes and short-maturity option anomalies. By providing a generic enhancement method, it offers practitioners a systematic approach to improving existing parametrizations without abandoning their theoretical foundations.
-
-From a research and practical standpoint, the framework opens further lines of inquiry:
-\begin{itemize}
-    \item Exploring multi-parameter or distributional combinations for enhanced flexibility.
-    \item Developing adaptive calibration strategies for highly dynamic markets.
-    \item Applying the method to exotic options or illiquid asset classes where traditional methods struggle.
-    \item Investigating the framework's performance during extreme market events and crisis periods.
-\end{itemize}
-
-For the remainder of this thesis, we will build on this foundation to implement, analyze, and extend randomized volatility parametrizations using empirical and synthetic data, with particular focus on the challenging scenarios where traditional models reach their limits.
