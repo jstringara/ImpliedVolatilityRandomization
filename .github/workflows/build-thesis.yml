@@ -18,14 +18,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up TeX Live
-        uses: xu-cheng/texlive-action@v1
-        with:
-          packages: >-
-            latexmk
-            biber
+      - name: Install TeX Live
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            texlive-latex-extra \
+            latexmk \
+            biber \
+            texlive-bibtex-extra \
+            texlive-fonts-recommended \
+            texlive-lang-english
 
-      - name: Compile thesis using latexmk
+      - name: Compile thesis
         run: |
           latexmk -pdf -interaction=nonstopmode -synctex=1 \
             -file-line-error -outdir=build -jobname=thesis main.tex
