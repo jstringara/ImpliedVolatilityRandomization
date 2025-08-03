@@ -31,6 +31,7 @@ jobs:
 
       - name: Compile thesis
         run: |
+          cd thesis
           latexmk -pdf -interaction=nonstopmode -synctex=1 \
             -file-line-error -outdir=build -jobname=thesis main.tex
 
@@ -38,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: thesis-pdf
-          path: build/thesis.pdf
+          path: thesis/build/thesis.pdf
