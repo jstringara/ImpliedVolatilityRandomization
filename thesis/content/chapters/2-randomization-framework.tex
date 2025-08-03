@@ -1,0 +1,32 @@
+\section{Randomized Volatility Surfaces}
+
+\subsection{General Volatility Parametrizations}
+As we have said in the previous section, the standard parametrizations of implied volatility surfaces give a class of functionals that depend on a finite number of parameters $\mathbf{p} = (p_1, \ldots, p_n)$.
+In general, we can define the \textit{parametrized implied volatility function} as a positive function over the set of expiration dates and strikes $(T, K)$, which is defined as:
+\[
+    \hat{\sigma}(T, K; \mathbf{p}) : (t_0, \infty) \times \mathbb{R}_+ \to \mathbb{R}_+.
+\]
+
+Of course for any choice of the parameters $\mathbf{p}$, the function $\hat{\sigma}(T, K; \mathbf{p})$ defines a surface over the domain $\Pi \subseteq (t_0, \infty) \times \mathbb{R}_+$.
+Further, since the this parametrized implied volatility function is positive, we can compose it with the Black-Scholes formula and obtain the \textit{parametrized (put/call) pricing function}:
+\[
+    V_{c/p}(T, K; \mathbf{p}) = BS(t_0, S_0, T, K; \hat{\sigma}(T, K; \mathbf{p})).
+\]
+This function is defined over the same domain $\Pi$ and gives the price of a European call/put option with strike $K$ and expiration $T$.
+Therefore, we have defined two more surfaces on the domain $\Pi$, one for calls and one for puts, which we denote as $V_c(T, K; \mathbf{p})$ and $V_p(T, K; \mathbf{p})$, respectively.
+
+\begin{center}
+\textbf{Definition 2.1} (Arbitrage-free volatility surface)
+\end{center}
+Given a set of parameters $\mathbf{p}$, let $\hat{\sigma}(T, K; \mathbf{p})$ be a parametrized implied volatility surface defined on $\Pi = \Pi_T \times \Pi_K = (t_0, \infty) \times \mathbb{R}_+$. Let $V_c(T, K; \mathbf{p})$ be its call pricing function, which is extended to the limit points at $T = t_0$. The parametrization is called free of "butterfly" arbitrage if the following conditions hold on the call pricing function and a constant $s > 0$:
+\begin{enumerate}[label=\roman*)]
+    \item $V_c(T, \cdot; \mathbf{p})$ is convex and non-increasing for all $T \in \Pi_T$.
+    \item $\lim_{K \to \infty} V_c(T, K; \mathbf{p}) = 0$ for all $T \in \Pi_T$.
+    \item $(s - K)^+ \leq V_c(T, K; \mathbf{p}) \leq s$ for all $(T, K) \in \Pi$.
+    \item $V_c(t_0, K; \mathbf{p}) = (s - K)^+$ for all $K \in \Pi_K$.
+\end{enumerate}
+If the following additional condition holds, the pricing surface is also free of "calendar" arbitrage, and we call the surface arbitrage-free:
+\begin{enumerate}[label=\roman*), resume]
+    \item $V_c(\cdot, K; \mathbf{p})$ is non-decreasing for all $K \in \Pi_K$.
+\end{enumerate}
+Equivalent conditions in terms of the put-call parity can be derived for the put pricing function $V_p(T, K; \mathbf{p})$, or directly in terms of the volatility surface $\hat{\sigma}(T, K; \mathbf{p})$ \cite{zaugg2024randomized}. Under these conditions, one can prove the existence of a non-negative local martingale process on a suitable probability space such that the call price function can be written as a risk-neutral expectation of the final payoff. In other words, an arbitrage-free model (price process) exists that yields the volatility surface. However, we will not utilize this fact to avoid introducing any model dynamics and remain "model-free".
