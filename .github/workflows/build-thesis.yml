@@ -2,12 +2,8 @@ name: Build Thesis PDF
 
 on:
   push:
-    paths:
-      - '**.tex'
-      - '**.bib'
-      - '.github/workflows/build-thesis.yml'
-      - 'Makefile'
-  pull_request:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -15,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/dante-ev/texlive:latest
+
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -26,8 +25,16 @@ jobs:
           latexmk -pdf -interaction=nonstopmode -synctex=1 \
             -file-line-error -outdir=build -jobname=thesis main.tex
 
-      - name: Upload PDF
+      - name: Upload PDF as artifact
         uses: actions/upload-artifact@v4
         with:
           name: thesis-pdf
           path: thesis/build/thesis.pdf
+
+      - name: Create GitHub Release and upload thesis PDF
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Thesis Draft
+          files: thesis/build/thesis.pdf
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
