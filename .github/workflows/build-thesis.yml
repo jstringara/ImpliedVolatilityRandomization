@@ -19,19 +19,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up TeX Live
-        uses: teatimeguest/setup-texlive-action@v2
+        uses: xu-cheng/texlive-action@v1
         with:
-          packages: >
-            scheme-medium
+          packages: >-
             latexmk
             biber
 
-      - name: Compile thesis using latexmk (VSCode-style)
+      - name: Compile thesis using latexmk
         run: |
           latexmk -pdf -interaction=nonstopmode -synctex=1 \
             -file-line-error -outdir=build -jobname=thesis main.tex
 
-      - name: Upload built thesis PDF
+      - name: Upload PDF
         uses: actions/upload-artifact@v4
         with:
           name: thesis-pdf
