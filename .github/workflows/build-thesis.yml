@@ -1,0 +1,38 @@
+name: Build Thesis PDF
+
+on:
+  push:
+    paths:
+      - '**.tex'
+      - '**.bib'
+      - '.github/workflows/build-thesis.yml'
+      - 'Makefile'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up TeX Live
+        uses: teatimeguest/setup-texlive-action@v2
+        with:
+          packages: >
+            scheme-medium
+            latexmk
+            biber
+
+      - name: Compile thesis using latexmk (VSCode-style)
+        run: |
+          latexmk -pdf -interaction=nonstopmode -synctex=1 \
+            -file-line-error -outdir=build -jobname=thesis main.tex
+
+      - name: Upload built thesis PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: thesis-pdf
+          path: build/thesis.pdf
