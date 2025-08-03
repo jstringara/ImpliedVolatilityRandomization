@@ -2,8 +2,12 @@ name: Build Thesis PDF
 
 on:
   push:
-    tags:
-      - 'v*'
+    paths:
+      - '**.tex'
+      - '**.bib'
+      - '.github/workflows/build-thesis.yml'
+      - 'Makefile'
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -13,7 +17,7 @@ jobs:
       image: ghcr.io/dante-ev/texlive:latest
 
     permissions:
-      contents: write
+      contents: write  # Needed for creating releases
 
     steps:
       - name: Checkout repository
@@ -31,10 +35,13 @@ jobs:
           name: thesis-pdf
           path: thesis/build/thesis.pdf
 
-      - name: Create GitHub Release and upload thesis PDF
+      - name: Create or update 'latest' release and upload thesis.pdf
         uses: softprops/action-gh-release@v1
         with:
-          name: Thesis Draft
+          tag_name: latest
+          name: Latest Draft
+          draft: false
+          prerelease: true
           files: thesis/build/thesis.pdf
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
