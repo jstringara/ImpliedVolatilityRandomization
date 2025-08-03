@@ -1,0 +1,55 @@
+name: Build Thesis PDF
+
+on:
+  push:
+    paths:
+      - '**.tex'
+      - '**.bib'
+      - '.github/workflows/build-thesis.yml'
+      - 'Makefile'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/dante-ev/texlive:latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache LaTeX build files
+        uses: actions/cache@v4
+        with:
+          path: thesis/build
+          key: latexmk-${{ hashFiles('thesis/**/*.tex', 'thesis/**/*.bib', 'thesis/config/**') }}
+          restore-keys: |
+            latexmk-
+
+      - name: Compile thesis
+        run: |
+          cd thesis
+          latexmk -pdf -interaction=nonstopmode -synctex=1 \
+            -file-line-error -outdir=build -jobname=thesis main.tex
+
+      - name: Upload PDF as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: thesis-pdf
+          path: thesis/build/thesis.pdf
+
+      - name: Create or update 'latest' release and upload thesis.pdf
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: latest
+          name: Latest Draft
+          draft: false
+          prerelease: true
+          files: thesis/build/thesis.pdf
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
