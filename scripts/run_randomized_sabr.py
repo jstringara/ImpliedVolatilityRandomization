@@ -51,6 +51,13 @@ if __name__ == "__main__":
             [0.9, 0.34742342, -0.56569068, 1.5388523],
         ]
     )
+    # Prepare to collect errors for LaTeX table
+    months_short = ["Aug", "Sep", "Oct", "Nov"]
+    mse_sabr_list = []
+    mse_rand_list = []
+    sse_sabr_list = []
+    sse_rand_list = []
+
     for i, ax, eDate, month, param, sabr_params in zip(
         range(4), axs.flatten(), expiryDates, months, rand_sabr_params, sabr_params
     ):
@@ -70,8 +77,6 @@ if __name__ == "__main__":
 
         # Get the randomized prices and expansion IVS
         randomized_prices = randomized_sabr.prices(spot, k_uni, t, r)
-        # 6th order ivs
-        randomized_ivs = randomized_sabr.ivs(spot, k_uni, t, r)
         # Plotting
         ax.plot(
             k / spot,
@@ -90,15 +95,6 @@ if __name__ == "__main__":
             color="#00539C",
             markevery=5,
         )
-        ax.plot(
-            k_uni / spot,
-            100 * np.array(randomized_ivs),
-            label="Randomized SABR (6th-order approximation)",
-            marker="*",
-            linewidth=1.5,
-            color="purple",
-            markevery=5,
-        )
 
         ax.plot(
             k_uni / spot,
@@ -111,6 +107,29 @@ if __name__ == "__main__":
             color=plt.cm.viridis(0.5),
             markevery=5,
         )
+        # --- Compute MSE and SSE on original strikes ---
+        # Classical SABR IVs on original strikes
+        sabr_iv = hagan_implied_volatility(k, t, spot * np.exp(r * t), *sabr_params)
+        # RandSABR prices and IVs on original strikes
+        rand_prices = randomized_sabr.prices(spot, k, t, r)
+        rand_iv = imply_volatility(rand_prices, spot, k, t, r, 0.4).flatten()
+
+        # Compute errors
+        mse_sabr = np.mean((iv - sabr_iv) ** 2)
+        sse_sabr = np.sum((iv - sabr_iv) ** 2)
+        mse_rand = np.mean((iv - rand_iv) ** 2)
+        sse_rand = np.sum((iv - rand_iv) ** 2)
+
+        mse_sabr_list.append(mse_sabr)
+        mse_rand_list.append(mse_rand)
+        sse_sabr_list.append(sse_sabr)
+        sse_rand_list.append(sse_rand)
+
+        print(f"\n{month} (TTM {np.round(t, 2)}y):")
+        print(f"  SABR      MSE: {mse_sabr:.6f}, SSE: {sse_sabr:.6f}")
+        print(f"  RandSABR  MSE: {mse_rand:.6f}, SSE: {sse_rand:.6f}")
+        # --- End error computation ---
+
         # Adjust Plot
         ax.grid()
         ax.set_xlabel("Strike (relative to ATM) ", size=20)
@@ -119,7 +138,9 @@ if __name__ == "__main__":
         ax.set_xlim([k[0] / spot, k[-1] / spot])
         l = ax.legend(prop={"size": 10}, fancybox=True, shadow=True)
         l.get_frame().set_edgecolor("black")
+
     import os
+
     plt.suptitle("SPX Option Chain 2024-07-31", fontsize=22, fontweight="bold")
     plt.tight_layout()
     output_dir = "outputs/figs"
