@@ -24,3 +24,8 @@ package-dir = { "" = "src" }
 where = ["src"]
 include = ["VolatilityRandomization*"]
 exclude = ["tests*", "scripts*", "outputs*"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.13.0",
+]

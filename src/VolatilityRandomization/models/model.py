@@ -227,7 +227,9 @@ class Model(BaseModel):
                 model_ivs = np.array(self.ivs(spot, k, t, r, params))
                 return np.mean((model_ivs - market_ivs) ** 2)
             except Exception as e:
-                print(f"[{self.name}] Error in objective function: {e} with params: {params}")
+                print(
+                    f"[{self.name}] Error in objective function: {e} with params: {params}"
+                )
                 return np.inf
 
         result = basinhopping(

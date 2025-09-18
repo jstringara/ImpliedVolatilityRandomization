@@ -3,6 +3,7 @@ import os
 # Default output root — relative to current working directory
 _output_root = os.environ.get("VR_OUTPUT_ROOT", os.path.join(os.getcwd(), "outputs"))
 
+
 def get_output_dir(kind: str) -> str:
     """
     Returns the output directory path for a given kind ("logs", "calibrations", etc.).
