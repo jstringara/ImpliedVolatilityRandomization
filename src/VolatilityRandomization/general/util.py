@@ -73,4 +73,5 @@ def imply_volatility(v, s, k, t, r, iv_init, isCall=True):
         )
         for j in range(len(k))
     ]
-    return np.array([optim.x if optim.success else np.nan for optim in optimized])
+    # return the root if found or good enough, else NaN
+    return np.array([optim.x if optim.success or (abs(optim.fun) < 1e-8) else np.nan for optim in optimized])
