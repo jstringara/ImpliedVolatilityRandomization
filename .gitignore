@@ -193,8 +193,10 @@ cython_debug/
 *.pyc
 
 # Output folders
-outputs/figs/
-outputs/results/
+outputs/figs/*
+!outputs/figs/.gitkeep
+outputs/results/*
+!outputs/results/.gitkeep
 
 # Saved calibrations and logs
 outputs/calibrations/*
