@@ -4,7 +4,7 @@ import json
 import time
 from datetime import datetime
 import numpy as np
-from typing import ClassVar, List, Dict, Optional
+from typing import List, Dict, Optional
 from pydantic import BaseModel, model_validator, PrivateAttr, computed_field
 from scipy.optimize import basinhopping
 
@@ -13,6 +13,7 @@ from VolatilityRandomization.general.expansions import get_sigma_0, get_sigma_ap
 from VolatilityRandomization.distributions import Distribution
 from VolatilityRandomization.models import Model
 from VolatilityRandomization.config import get_output_dir
+from VolatilityRandomization.general.util import imply_volatility
 
 
 class RandomizedModel(BaseModel):
@@ -391,24 +392,39 @@ class RandomizedModel(BaseModel):
         return (weights[:, np.newaxis] * prices_for_params).sum(axis=0)
 
     def ivs(
-        self, spot: float, k: np.ndarray, t: float, r: float, order: int = 6
+        self, spot: float, k: np.ndarray, t: float, r: float, exact: bool = True, order: int = 6
     ) -> np.ndarray:
         """
         Return model implied volatilities for a set of strikes.
         Compute implied volatilities by mixing over randomization.
         """
-        weights, params = self._generate_param_sets()
-        model_ivs = [np.atleast_1d(self.model.ivs(spot, k, t, r, p)) for p in params]
+        if not exact:
 
-        ivs_mixed = []
-        for strike_idx, strike in enumerate(k):
-            m = np.log(spot / strike) + r * t
-            ivs_at_strike = np.array([ivs[strike_idx] for ivs in model_ivs])
-            sigma0 = get_sigma_0(t, weights, ivs_at_strike)
-            ivs_mixed.append(
-                get_sigma_approx(m, t, sigma0, weights, ivs_at_strike, order)
-            )
-        return ivs_mixed
+            weights, params = self._generate_param_sets()
+            model_ivs = [np.atleast_1d(self.model.ivs(
+                spot, k, t, r, p)) for p in params]
+
+            ivs_mixed = []
+            for strike_idx, strike in enumerate(k):
+                m = np.log(spot / strike) + r * t
+                ivs_at_strike = np.array([ivs[strike_idx]
+                                         for ivs in model_ivs])
+                sigma0 = get_sigma_0(t, weights, ivs_at_strike)
+                ivs_mixed.append(
+                    get_sigma_approx(m, t, sigma0, weights,
+                                     ivs_at_strike, order)
+                )
+            return ivs_mixed
+
+        # otherwise compute exact IVs from prices
+        prices = self.prices(spot, k, t, r)
+        ivs = np.full_like(prices, np.nan, dtype=np.float64)
+        try:
+            ivs = imply_volatility(prices, spot, k, t, r, 0.4).flatten()
+        except Exception as e:
+            self._log(f"Error in imply_volatility: {e}", level="error")
+            raise e
+        return ivs
 
     def calibrate(
         self,
@@ -444,7 +460,8 @@ class RandomizedModel(BaseModel):
             try:
                 self.params = params
                 model_ivs = np.array(self.ivs(spot, k, t, r))
-                return np.mean((model_ivs - market_ivs) ** 2)
+                mse = np.mean((model_ivs - market_ivs) ** 2)
+                return mse
             except Exception as e:
                 self._log(
                     f"[{self.name}] Error in objective function: {e} with params: {params}",
