@@ -1,3 +1,4 @@
+import os
 from datetime import date
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -223,6 +224,8 @@ if __name__ == "__main__":
         fontweight="bold",
     )
     plt.tight_layout()
+    output_figs_dir = "outputs/figs"
+    os.makedirs(output_figs_dir, exist_ok=True)
     plt.savefig("outputs/figs/randomized_sabr_with_calibration.png", dpi=300)
     plt.show()
 
@@ -241,5 +244,7 @@ if __name__ == "__main__":
     print()
 
     # Save RMSE table to CSV
+    output_results_dir = "outputs/results"
+    os.makedirs(output_results_dir, exist_ok=True)
     rmse_df.to_csv("outputs/results/rmse_comparison.csv")
     print(f"RMSE table saved to outputs/results/rmse_comparison.csv")
