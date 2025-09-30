@@ -43,10 +43,14 @@ if __name__ == "__main__":
     months = ["November", "December", "January", "February"]
     months_short = ["Nov", "Dec", "Jan", "Feb"]
 
-    # Initialize data storage for RMSE and parameters
-    rmse_data = {
-        "RandSABR": [],
+    # Initialize data storage for LaTeX tables
+    sse_data = {
         "SABR": [],
+        "RandSABR": [],
+    }
+    mse_data = {
+        "SABR": [],
+        "RandSABR": [],
     }
     parameters_data = {
         "beta": [],
@@ -97,7 +101,7 @@ if __name__ == "__main__":
         )
         _ = rand_sabr_model.calibrate(
             spot, k, t, r, iv, rand_sabr_initial_params,
-            fixed_params={"beta": 0.9}, n_iter=0, verbose=False
+            fixed_params={"beta": 0.9}, n_iter=10, verbose=False
         )
         
         # Store calibrated parameters
@@ -115,11 +119,17 @@ if __name__ == "__main__":
         rand_prices_on_k = rand_sabr_model.prices(spot, k, t, r)
         rand_iv_on_k = imply_volatility(rand_prices_on_k, spot, k, t, r, 0.4).flatten()
         
-        # Calculate RMSE and store for table
-        rmse_rand = np.sqrt(np.mean((iv - rand_iv_on_k) ** 2))
-        rmse_sabr = np.sqrt(np.mean((iv - sabr_iv_on_k) ** 2))
-        rmse_data["RandSABR"].append(rmse_rand)
-        rmse_data["SABR"].append(rmse_sabr)
+        # Calculate SSE and MSE
+        mse_sabr = np.mean((iv - sabr_iv_on_k) ** 2)
+        sse_sabr = np.sum((iv - sabr_iv_on_k) ** 2)
+        mse_rand = np.mean((iv - rand_iv_on_k) ** 2)
+        sse_rand = np.sum((iv - rand_iv_on_k) ** 2)
+        
+        # Store errors for tables
+        mse_data["SABR"].append(mse_sabr)
+        mse_data["RandSABR"].append(mse_rand)
+        sse_data["SABR"].append(sse_sabr)
+        sse_data["RandSABR"].append(sse_rand)
 
         # Create uniform grid for smooth plotting
         k_uni = np.linspace(k[0] / spot, k[-1] / spot, 100) * spot
@@ -186,24 +196,59 @@ if __name__ == "__main__":
         f"{output_dir}/wti_implied_volatilities_with_models.png", dpi=300)
     plt.show()
 
+    # --- Print the table for MSE and SSE comparison ---
+    print("\nComparison of fitting errors between standard and randomized SABR models for WTI:\n")
+    for i in range(4):
+        print(f"{months_short[i]}: ")
+        print(f"  Standard SABR - MSE: {mse_data['SABR'][i]:.2E}, SSE: {sse_data['SABR'][i]:.7f}")
+        print(f"  Randomized SABR - MSE: {mse_data['RandSABR'][i]:.2E}, SSE: {sse_data['RandSABR'][i]:.7f}\n")
 
-    # --- Print and save the RMSE table in markdown style (like run_calibration.py) ---
-    rmse_df = pd.DataFrame(rmse_data, index=months)
-    rmse_df = rmse_df.T  # Models as rows, months as columns
+    # --- Generate LaTeX tables ---
+    output_table_dir = "outputs/tables"
+    os.makedirs(output_table_dir, exist_ok=True)
 
-    print("\n### RMSE Comparison Table (%)\n")
-    print("| Model     | Nov      | Dec      | Jan      | Feb      |")
-    print("|-----------|----------|----------|----------|----------|")
-    for model_name, row in rmse_df.iterrows():
-        print(f"| {model_name:<9} | "
-              f"{row['November'] * 100:<8.4f} | "
-              f"{row['December'] * 100:<8.4f} | "
-              f"{row['January'] * 100:<8.4f} | "
-              f"{row['February'] * 100:<8.4f} |")
-    print()
+    # LaTeX table for MSE and SSE comparison
+    latex_table = "\n\\begin{table}[h!]\n"
+    latex_table += "\\centering\n"
+    latex_table += "\\begin{tabular}{lcccc}\n"
+    latex_table += "\\toprule\n"
+    latex_table += "& \\multicolumn{2}{c}{Sum Squared Errors (SSE)} & \\multicolumn{2}{c}{Mean Squared Errors (MSE)} \\\\\n"
+    latex_table += "\\cmidrule(lr){2-3} \\cmidrule(lr){4-5}\n"
+    latex_table += "Expiry & Standard SABR & Randomized SABR & Standard SABR & Randomized SABR \\\\\n"
+    latex_table += "\\midrule\n"
+    for i in range(4):
+        latex_table += (f"{months_short[i]} & "
+                        f"{sse_data['SABR'][i]:.7f} & {sse_data['RandSABR'][i]:.7f} & "
+                        f"{mse_data['SABR'][i]:.2E} & {mse_data['RandSABR'][i]:.2E} \\\\\n")
+    latex_table += "\\bottomrule\n"
+    latex_table += "\\end{tabular}\n"
+    latex_table += "\\caption{Comparison of fitting errors between standard and randomized SABR models for WTI options}\n"
+    latex_table += "\\label{tab:error_comparison_wti}\n"
+    latex_table += "\\end{table}\n"
 
-    # Save RMSE table to CSV
-    output_results_dir = "outputs/results"
-    os.makedirs(output_results_dir, exist_ok=True)
-    rmse_df.to_csv(f"{output_results_dir}/rmse_comparison_wti.csv")
-    print(f"RMSE table saved to {output_results_dir}/rmse_comparison_wti.csv")
+    with open(f"{output_table_dir}/MSE-SSE_SABR-Rand_WTI.tex", "w") as f:
+        f.write(latex_table)
+
+    # LaTeX table for RandSABR parameters
+    latex_table = "\n\\begin{table}[h!]\n"
+    latex_table += "\\centering\n"
+    latex_table += "\\begin{tabular}{lccccccc}\n"
+    latex_table += "\\toprule\n"
+    latex_table += "Expiry & $\\beta$ & $\\alpha$ & $\\rho$ & $k$ & $\\theta$ & Var($\\Gamma$) \\\\\n"
+    latex_table += "\\midrule\n"
+    for i in range(4):
+        latex_table += (f"{months_short[i]} & "
+                        f"{parameters_data['beta'][i]:.1f} & {parameters_data['alpha'][i]:.3f} & {parameters_data['rho'][i]:.3f} & "
+                        f"{parameters_data['kappa'][i]:.3f} & {parameters_data['theta'][i]:.3f} & {parameters_data['var_gamma'][i]:.3f} \\\\\n")
+    latex_table += "\\bottomrule\n"
+    latex_table += "\\end{tabular}\n"
+    latex_table += "\\caption{Calibrated parameters for the randomized SABR model on WTI options}\n"
+    latex_table += "\\label{tab:wti_rand_sabr_parameters}\n"
+    latex_table += "\\end{table}\n"
+    
+    with open(f"{output_table_dir}/RandSABR_parameters_WTI.tex", "w") as f:
+        f.write(latex_table)
+
+    print(f"\nLaTeX tables saved to {output_table_dir}/")
+    print("- MSE-SSE_SABR-Rand_WTI.tex")
+    print("- RandSABR_parameters_WTI.tex")
