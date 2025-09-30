@@ -1,3 +1,4 @@
+import os
 from datetime import date
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -125,9 +126,6 @@ if __name__ == "__main__":
         sse_sabr_list.append(sse_sabr)
         sse_rand_list.append(sse_rand)
 
-        print(f"\n{month} (TTM {np.round(t, 2)}y):")
-        print(f"  SABR      MSE: {mse_sabr:.6f}, SSE: {sse_sabr:.6f}")
-        print(f"  RandSABR  MSE: {mse_rand:.6f}, SSE: {sse_rand:.6f}")
         # --- End error computation ---
 
         # Adjust Plot
@@ -138,9 +136,62 @@ if __name__ == "__main__":
         ax.set_xlim([k[0] / spot, k[-1] / spot])
         l = ax.legend(prop={"size": 10}, fancybox=True, shadow=True)
         l.get_frame().set_edgecolor("black")
+    
+    # --- Print the table for MSE and SSE ---
+    print("\nComparison of fitting errors between standard and randomized SABR models:\n")
+    for i in range(4):
+        print(f"{months_short[i]}: ")
+        print(f"  Standard SABR - MSE: {mse_sabr_list[i]:.2E}, SSE: {sse_sabr_list[i]:.7f}")
+        print(f"  Randomized SABR - MSE: {mse_rand_list[i]:.2E}, SSE: {sse_rand_list[i]:.7f}\n")
 
-    import os
 
+    # --- Print LaTeX table for SSE and MSE ---
+    latex_table = "\n\\begin{table}[h!]\n"
+    latex_table += "\\centering\n"
+    latex_table += "\\begin{tabular}{lcccc}\n"
+    latex_table += "\\toprule\n"
+    latex_table += "& \\multicolumn{2}{c}{Sum Squared Errors (SSE)} & \\multicolumn{2}{c}{Mean Squared Errors (MSE)} \\\\\n"
+    latex_table += "\\cmidrule(lr){2-3} \\cmidrule(lr){4-5}\n"
+    latex_table += "Expiry & Standard SABR & Randomized SABR & Standard SABR & Randomized SABR \\\\\n"
+    latex_table += "\\midrule\n"
+    for i in range(4):
+        latex_table += (f"{months_short[i]} & "
+                        f"{sse_sabr_list[i]:.7f} & {sse_rand_list[i]:.7f} & "
+                        f"{mse_sabr_list[i]:.2E} & {mse_rand_list[i]:.2E} \\\\\n")
+    latex_table += "\\bottomrule\n"
+    latex_table += "\\end{tabular}\n"
+    latex_table += "\\caption{Comparison of fitting errors between standard and randomized SABR models}\n"
+    latex_table += "\\label{tab:error_comparison}\n"
+    latex_table += "\\end{table}\n"
+
+    # Save to file
+    output_table_dir = "outputs/tables"
+    os.makedirs(output_table_dir, exist_ok=True)
+    with open(f"{output_table_dir}/MSE-SSE_SABR-Rand.tex", "w") as f:
+        f.write(latex_table)
+    # --- End LaTeX table output ---
+
+    # --- Print LaTeX table for the parameters ---
+    latex_table = "\n\\begin{table}[h!]\n"
+    latex_table += "\\centering\n"
+    latex_table += "\\begin{tabular}{lccccccc}\n"
+    latex_table += "\\toprule\n"
+    latex_table += "Expiry & $\\beta$ & $\\alpha$ & $\\rho$ & $k$ & $\\theta$ & Var($\\Gamma$) \\\\\n"
+    latex_table += "\\midrule\n"
+    for i in range(4):
+        latex_table += (f"{months_short[i]} & "
+                        f"{rand_sabr_params[i,0]:.1f} & {rand_sabr_params[i,1]:.3f} & {rand_sabr_params[i,2]:.3f} & "
+                        f"{rand_sabr_params[i,3]:.3f} & {rand_sabr_params[i,4]:.3f} & {rand_sabr_params[i,3]*rand_sabr_params[i,4]**2:.3f} \\\\\n")
+    latex_table += "\\bottomrule\n"
+    latex_table += "\\end{tabular}\n"
+    latex_table += "\\caption{Calibrated parameters for the randomized SABR model}\n"
+    latex_table += "\\label{tab:calibration_results}\n"
+    latex_table += "\\end{table}\n"
+    
+    # Save to file
+    with open(f"{output_table_dir}/RandSABR_parameters.tex", "w") as f:
+        f.write(latex_table)
+    
     plt.suptitle("SPX Option Chain 2024-07-31", fontsize=22, fontweight="bold")
     plt.tight_layout()
     output_dir = "outputs/figs"
